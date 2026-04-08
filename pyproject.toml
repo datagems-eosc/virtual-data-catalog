@@ -1,8 +1,8 @@
 [project]
-name = "example-project"
+name = "vdc-api"
 version = "0.0.1"
-description = "This is a template repository for DataGEMS Python projects that uses uv for their dependency management."
-authors = [{ name = "Mike Xydas", email = "mxydas@athenarc.gr" }]
+description = ""
+authors = [{ name = "Zoe Chevallier", email = "zoe.chevallier@univr.it" }]
 readme = "README.md"
 keywords = ['python']
 requires-python = ">=3.9,<4.0"
@@ -31,7 +31,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.setuptools]
-py-modules = ["example_project"]
+py-modules = ["vdc_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
