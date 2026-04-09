@@ -1,0 +1,67 @@
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+@prefix ex: <http://example.com/library/> .
+
+<#AuthorsTriplesMap> a rr:TriplesMap ;
+        rr:logicalTable [ rr:tableName "library.public.authors" ] ;
+        rr:subjectMap [
+                rr:template "http://example.com/library/author/{author_id}" ;
+                rr:class ex:Author
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:authorId ;
+                rr:objectMap [ rr:column "author_id" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:name ;
+                rr:objectMap [ rr:column "name" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:country ;
+                rr:objectMap [ rr:column "country" ]
+        ] .
+
+<#BooksTriplesMap> a rr:TriplesMap ;
+        rr:logicalTable [ rr:tableName "library.public.books" ] ;
+        rr:subjectMap [
+                rr:template "http://example.com/library/book/{book_id}" ;
+                rr:class ex:Book
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:bookId ;
+                rr:objectMap [ rr:column "book_id" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:title ;
+                rr:objectMap [ rr:column "title" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:publicationYear ;
+                rr:objectMap [ rr:column "publication_year" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:authorId ;
+                rr:objectMap [ rr:column "author_id" ]
+        ] .
+
+<#BorrowersTriplesMap> a rr:TriplesMap ;
+        rr:logicalTable [ rr:tableName "library.public.borrowers" ] ;
+        rr:subjectMap [
+                rr:template "http://example.com/library/borrower/{borrower_id}" ;
+                rr:class ex:Borrower
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:borrowerId ;
+                rr:objectMap [ rr:column "borrower_id" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:name ;
+                rr:objectMap [ rr:column "name" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:borrowedBookId ;
+                rr:objectMap [ rr:column "borrowed_book_id" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:borrowDate ;
+                rr:objectMap [ rr:column "borrow_date" ]
+        ] .

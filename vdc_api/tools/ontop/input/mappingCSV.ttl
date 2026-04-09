@@ -1,0 +1,27 @@
+
+<#BooksCSVTriplesMap> a rr:TriplesMap ;
+        rr:logicalTable [ rr:tableName "\"@vdc\".books"] ;
+        rr:subjectMap [
+                rr:template "http://example.com/library/bookcsv/{A}" ;
+                rr:class ex:Book
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:bookId ;
+                rr:objectMap [ rr:column "A" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:title ;
+                rr:objectMap [ rr:column "B" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:author ;
+                rr:objectMap [ rr:column "C" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:year_published ;
+                rr:objectMap [ rr:column "D" ]
+        ] ;
+        rr:predicateObjectMap [
+                rr:predicate ex:genre ;
+                rr:objectMap [ rr:column "E" ]
+        ] .

@@ -1,28 +1,30 @@
-# example-project
+# vdc-api
 
-[![Commit activity](https://img.shields.io/github/commit-activity/m/datagems-eosc/example-project)](https://img.shields.io/github/commit-activity/m/datagems-eosc/example-project)
-[![License](https://img.shields.io/github/license/datagems-eosc/example-project)](https://img.shields.io/github/license/datagems-eosc/example-project)
+Virtual Data Catalog API (WP5)
 
-This is a template repository for DataGEMS Python projects that uses uv for their dependency management.
+The official documentation is available at: https://datagems-eosc.github.io/virtual-data-catalog/latest/
 
+## 1. Getting started with your project
 
-## Getting started with your project
+### Prerequisites
 
-### 1. Create a New Repository
-
-First, create a repository on GitHub with the same name as this project, and then run the following commands:
+**Git LFS** is required to pull large files from the repository. Install it before cloning:
 
 ```bash
-git init -b main
-git add .
-git commit -m "init commit"
-git remote add origin git@github.com:datagems-eosc/example-project.git
-git push -u origin main
+# macOS
+brew install git-lfs
+
+# Linux (Ubuntu/Debian)
+sudo apt-get install git-lfs
+
+# Then initialize Git LFS
+git lfs install
+git lfs pull
 ```
 
-### 2. Set Up Your Development Environment
+### Set Up Your Development Environment
 
-#### Linux
+#### Linux/macOS
 
 If you do not have `uv` installed, you can install it with
 
@@ -63,23 +65,45 @@ uv run pre-commit install
 
 This will also generate your `uv.lock` file
 
-### 3. Run the pre-commit hooks
+## API Usage Examples
 
-Initially, the CI/CD pipeline might be failing due to formatting issues. To resolve those run:
+## Running the API Locally
+You can run the API either directly using Docker.
+
+## Services And Endpoints
+
+When the Docker Compose stack is running, the following services are available:
+
+| Service | Purpose | Host endpoint |
+| --- | --- | --- |
+| `postgres_db` | PostgreSQL database used by Dremio and Ontop | `localhost:5432` |
+| `dremio` | Dremio UI and catalog service | `http://localhost:9047` |
+| `dremio` | Dremio Arrow Flight SQL endpoint | `localhost:32010` |
+| `ontop` | Ontop SPARQL endpoint | `http://localhost:9090/sparql` |
+| `ontop` | Ontop application root | `http://localhost:9090` |
+| `dremio_init` | One-shot initialization job that bootstraps Dremio and creates the PostgreSQL source | No public endpoint |
+
+Default credentials and source names are configured in [`.env`](/Users/zoech/Documents/projects/datagems/code/virtual-data-catalog/.env):
+
+| Setting | Value |
+| --- | --- |
+| `POSTGRES_DB` | `library` |
+| `POSTGRES_USER` | `postgres_user` |
+| `DREMIO_ADMIN_USER` | `vdc` |
+| `DREMIO_POSTGRES_SOURCE_NAME` | `library` |
+
+### Docker
+
+Run the API using Docker.
+
+Use the provided Dockerfile to build the image:
 
 ```bash
-uv run pre-commit run -a
+docker build -t fastapi-image .
 ```
 
-### 4. Commit the changes
-
-Lastly, commit the changes made by the two steps above to your repository.
+Start a container from the image and mount the results directory:
 
 ```bash
-git add .
-git commit -m 'Fix formatting issues'
-git push origin main
+docker run -d -p 5000:5000 -v /path/to/your/local/results:/app/dmm_api/data/results --name fastapi-container fastapi-image
 ```
----
-
-The uv-python cookiecutter was originally created in [https://github.com/fpgmaas/cookiecutter-uv](https://github.com/fpgmaas/cookiecutter-uv).

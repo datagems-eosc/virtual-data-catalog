@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  postgres_db:
+    image: postgres:15
+    container_name: postgres-endpoint
+    env_file:
+      - .env
+    ports:
+      - "${MAPPED_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./vdc_api/tools/ontop/data/relational/library.sql:/docker-entrypoint-initdb.d/library.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres_user} -d ${POSTGRES_DB:-library}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ontop-network
+
+  ontop:
+    image: ontop/ontop:latest
+    container_name: ontop-endpoint
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - ./vdc_api/tools/ontop/input:/opt/ontop/input:ro
+      - ./vdc_api/tools/ontop/jdbc:/opt/ontop/jdbc:ro
+    environment:
+      ONTOP_ONTOLOGY_FILE: /opt/ontop/input/ontology.ttl
+      ONTOP_MAPPING_FILE: /opt/ontop/input/mappings.ttl
+      ONTOP_PROPERTIES_FILE: /opt/ontop/input/ontop.properties
+      ONTOP_CORS_ALLOWED_ORIGINS: "*"
+      ONTOP_DEV_MODE: "true"
+      JAVA_TOOL_OPTIONS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
+    env_file:
+      - .env
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      dremio:
+        condition: service_healthy
+      dremio_init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - ontop-network
+
+  dremio:
+    image: dremio/dremio-oss:latest
+    container_name: dremio
+    env_file:
+      - .env
+    ports:
+      - "${DREMIO_PORT:-9047}:9047"
+      - "${DREMIO_FLIGHT_PORT:-32010}:32010"
+    volumes:
+      - dremio_data:/var/lib/dremio
+      - ./vdc_api/tools/ontop/data/csv:/var/data/csv:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9047 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - ontop-network
+
+  dremio_init:
+    image: python:3.11-slim
+    container_name: dremio-init
+    working_dir: /workspace/vdc_api/tools/ontop
+    command: ["sh", "/workspace/vdc_api/tools/ontop/scripts/dremio-init.sh"]
+    env_file:
+      - .env
+    environment:
+      DREMIO_HOST: dremio
+    volumes:
+      - ./:/workspace
+    depends_on:
+      dremio:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - ontop-network
+
+volumes:
+  postgres_data:
+  dremio_data:
+
+networks:
+  ontop-network:
+    driver: bridge

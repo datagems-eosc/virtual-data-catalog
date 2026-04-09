@@ -1,11 +1,15 @@
 [project]
 name = "vdc-api"
 version = "0.0.1"
-description = ""
+description = "Virtual Data Catalog (WP5)"
 authors = [{ name = "Zoe Chevallier", email = "zoe.chevallier@univr.it" }]
 readme = "README.md"
 keywords = ['python']
 requires-python = ">=3.9,<4.0"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+]
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python",
