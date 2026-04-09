@@ -68,7 +68,35 @@ This will also generate your `uv.lock` file
 ## API Usage Examples
 
 ## Running the API Locally
-You can run the API either directly using Docker.
+You can run the full stack with Docker Compose.
+
+### Docker Compose
+
+Start all services:
+
+```bash
+docker-compose up -d --build
+```
+
+Check service status:
+
+```bash
+docker-compose ps -a
+```
+
+Follow API logs:
+
+```bash
+docker-compose logs -f api
+```
+
+Stop services (keep data):
+
+```bash
+docker-compose down
+```
+
+Do not use `docker-compose down -v` unless you want to delete PostgreSQL and Dremio volumes.
 
 ## Services And Endpoints
 
@@ -76,34 +104,18 @@ When the Docker Compose stack is running, the following services are available:
 
 | Service | Purpose | Host endpoint |
 | --- | --- | --- |
+| `api` | FastAPI service | `http://localhost:5002` |
 | `postgres_db` | PostgreSQL database used by Dremio and Ontop | `localhost:5432` |
 | `dremio` | Dremio UI and catalog service | `http://localhost:9047` |
 | `dremio` | Dremio Arrow Flight SQL endpoint | `localhost:32010` |
 | `ontop` | Ontop SPARQL endpoint | `http://localhost:9090/sparql` |
 | `ontop` | Ontop application root | `http://localhost:9090` |
-| `dremio_init` | One-shot initialization job that bootstraps Dremio and creates the PostgreSQL source | No public endpoint |
+| `dremio_init` | One-shot initialization job that bootstraps Dremio | No public endpoint |
 
-Default credentials and source names are configured in [`.env`](/Users/zoech/Documents/projects/datagems/code/virtual-data-catalog/.env):
+Main API endpoints:
 
-| Setting | Value |
-| --- | --- |
-| `POSTGRES_DB` | `library` |
-| `POSTGRES_USER` | `postgres_user` |
-| `DREMIO_ADMIN_USER` | `vdc` |
-| `DREMIO_POSTGRES_SOURCE_NAME` | `library` |
-
-### Docker
-
-Run the API using Docker.
-
-Use the provided Dockerfile to build the image:
-
-```bash
-docker build -t fastapi-image .
-```
-
-Start a container from the image and mount the results directory:
-
-```bash
-docker run -d -p 5000:5000 -v /path/to/your/local/results:/app/dmm_api/data/results --name fastapi-container fastapi-image
-```
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `http://localhost:5002/api/v1` | API health/info |
+| `POST` | `http://localhost:5002/api/v1/dataset` | Add dataset (currently mocked flow) |
+| `GET` | `http://localhost:5002/api/v1/swagger` | Swagger UI |
