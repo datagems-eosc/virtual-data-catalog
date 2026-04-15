@@ -33,12 +33,7 @@ def read_root():
                 "description": "Add a new dataset to dremio and ontop",
                 "methods": ["POST"],
                 "url": "/api/v1/dataset/{dataset_id}",
-            },
-            "mapping": {
-                "description": "Add a new mapping for a specific dataset",
-                "methods": ["POST"],
-                "url": "/api/v1/mapping/{dataset_id}",
-            },
+            }
         },
     }
 
