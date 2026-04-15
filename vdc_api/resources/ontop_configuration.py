@@ -137,11 +137,11 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
         "name": source_name,
         "type": "POSTGRES",
         "config": {
-            "hostname": os.getenv("DATAGEMS_POSTGRES_HOST"),
-            "port": int(os.getenv("DATAGEMS_POSTGRES_PORT")),
+            "hostname": os.getenv("POSTGRES_HOST"),
+            "port": int(os.getenv("POSTGRES_PORT")),
             "databaseName": db_name,
-            "username": os.getenv("DS_READER_USER"),
-            "password": os.getenv("DS_READER_PS", ""),
+            "username": os.getenv("POSTGRES_USER"),
+            "password": os.getenv("POSTGRES_PASSWORD", ""),
             "useSsl": False,
         },
     }
