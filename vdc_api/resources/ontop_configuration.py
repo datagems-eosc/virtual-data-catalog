@@ -17,12 +17,14 @@ class MockResponse:
         self.status_code = status_code
 
 
-DREMIO_BASE_URL = f"http://{os.getenv('DREMIO_HOST')}:{os.getenv('DREMIO_PORT')}"
-DREMIO_ADMIN_USER = os.getenv("DREMIO_ADMIN_USER")
-DREMIO_ADMIN_PASSWORD = os.getenv("DREMIO_ADMIN_PASSWORD")
+DREMIO_BASE_URL = (
+    f"http://{os.getenv('DREMIO_HOST', 'dremio')}:{os.getenv('DREMIO_PORT', '9047')}"
+)
+DREMIO_ADMIN_USER = os.getenv("DREMIO_ADMIN_USER", "vdc")
+DREMIO_ADMIN_PASSWORD = os.getenv("DREMIO_ADMIN_PASSWORD", "vdc-admin1")
 
-DMM_API_URL = os.getenv("DMM_API_URL")
-DMM_API_TIMEOUT_SECONDS = float(os.getenv("DMM_API_TIMEOUT_SECONDS"))
+DMM_URL = os.getenv("DMM_URL")
+DMM_API_TIMEOUT_SECONDS = float(os.getenv("DMM_API_TIMEOUT_SECONDS", "300"))
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
@@ -301,7 +303,7 @@ async def get_dataset_info(dataset_id: str, token) -> dict:
     Get the dataset information from the DMM API for the given dataset_id. The token is used for authentication with the DMM API.
     Returns the dataset information as a dictionary if the request is successful, or raises an HTTPException.
     """
-    request_url = f"{DMM_API_URL}/dataset/get/{dataset_id}"
+    request_url = f"{DMM_URL}/dataset/get/{dataset_id}"
 
     try:
         timeout = httpx.Timeout(DMM_API_TIMEOUT_SECONDS)
