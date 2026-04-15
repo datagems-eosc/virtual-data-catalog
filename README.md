@@ -75,7 +75,7 @@ Get API status:
 curl -X GET "http://localhost:5002/api/v1"
 ```
 
-Add a dataset:
+Add a dataset in dremio and generate the mappings if status is ready:
 
 ```bash
 curl -X POST "http://localhost:5002/api/v1/dataset/<dataset_id>" \
