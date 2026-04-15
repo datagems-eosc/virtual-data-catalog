@@ -9,22 +9,24 @@ from dotenv import load_dotenv
 load_dotenv(override=False)
 
 
-def require_env(name):
+def require_env(name, default=None):
     value = os.getenv(name)
     if value is None or value == "":
+        if default is not None:
+            return default
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
 
 
-DREMIO_HOST = require_env("DREMIO_HOST")
-DREMIO_PORT = int(require_env("DREMIO_PORT"))
+DREMIO_HOST = require_env("DREMIO_HOST", "dremio")
+DREMIO_PORT = int(require_env("DREMIO_PORT", "9047"))
 BASE_URL = f"http://{DREMIO_HOST}:{DREMIO_PORT}"
 
-DREMIO_ADMIN_USER = require_env("DREMIO_ADMIN_USER")
-DREMIO_ADMIN_PASSWORD = require_env("DREMIO_ADMIN_PASSWORD")
-DREMIO_ADMIN_FIRSTNAME = require_env("DREMIO_ADMIN_FIRSTNAME")
-DREMIO_ADMIN_LASTNAME = require_env("DREMIO_ADMIN_LASTNAME")
-DREMIO_ADMIN_EMAIL = require_env("DREMIO_ADMIN_EMAIL")
+DREMIO_ADMIN_USER = require_env("DREMIO_ADMIN_USER", "vdc")
+DREMIO_ADMIN_PASSWORD = require_env("DREMIO_ADMIN_PASSWORD", "vdc-admin1")
+DREMIO_ADMIN_FIRSTNAME = require_env("DREMIO_ADMIN_FIRSTNAME", "Admin")
+DREMIO_ADMIN_LASTNAME = require_env("DREMIO_ADMIN_LASTNAME", "User")
+DREMIO_ADMIN_EMAIL = require_env("DREMIO_ADMIN_EMAIL", "admin@example.com")
 
 
 def log(msg):
