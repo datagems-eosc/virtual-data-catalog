@@ -182,6 +182,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     """Create a CSV source in Dremio with the given dataset ID. (in progress, not tested yet)
     The connection details are retrieved from environment variables.
     """
+    logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
     source_name = os.getenv("S3_SOURCE_NAME", f"s3-csv-{dataset_id}")
     bucket = os.getenv("S3_BUCKET")
     if not bucket:
