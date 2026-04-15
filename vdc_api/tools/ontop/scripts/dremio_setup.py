@@ -26,14 +26,6 @@ DREMIO_ADMIN_FIRSTNAME = require_env("DREMIO_ADMIN_FIRSTNAME")
 DREMIO_ADMIN_LASTNAME = require_env("DREMIO_ADMIN_LASTNAME")
 DREMIO_ADMIN_EMAIL = require_env("DREMIO_ADMIN_EMAIL")
 
-POSTGRES_HOST = require_env("POSTGRES_HOST")
-POSTGRES_PORT = int(require_env("POSTGRES_PORT"))
-POSTGRES_DB = require_env("POSTGRES_DB")
-POSTGRES_USER = require_env("POSTGRES_USER")
-POSTGRES_PASSWORD = require_env("POSTGRES_PASSWORD")
-
-POSTGRES_SOURCE_NAME = require_env("DREMIO_POSTGRES_SOURCE_NAME")
-
 
 def log(msg):
     print(f"[dremio-init] {msg}", flush=True)
@@ -135,52 +127,12 @@ def delete_source_if_exists(token, name):
         pass
 
 
-def create_postgres_source(token):
-    log(f"Creating PostgreSQL source '{POSTGRES_SOURCE_NAME}'...")
-    pg_payload = {
-        "entityType": "source",
-        "name": POSTGRES_SOURCE_NAME,
-        "type": "POSTGRES",
-        "config": {
-            "hostname": POSTGRES_HOST,
-            "port": str(POSTGRES_PORT),
-            "databaseName": POSTGRES_DB,
-            "username": POSTGRES_USER,
-            "password": POSTGRES_PASSWORD,
-            "useSsl": False,
-        },
-    }
-
-    r = requests.post(
-        f"{BASE_URL}/api/v3/catalog",
-        headers=auth_headers(token),
-        json=pg_payload,
-        timeout=30,
-    )
-    if r.status_code in (200, 201):
-        log("  Created PostgreSQL source")
-        return True
-
-    if r.status_code == 409:
-        log("  PostgreSQL source already exists")
-        return True
-
-    log(f"  Failed: {r.status_code} - {r.text[:200]}")
-    return False
-
-
 def main():
     log("=" * 40)
     log("  Dremio Setup Starting")
     log("=" * 40)
 
     wait_for_dremio()
-    token = get_token()
-
-    success = create_postgres_source(token)
-    if not success:
-        log("ERROR: Failed to create PostgreSQL source")
-        sys.exit(1)
 
     log("=" * 40)
     log("  Setup Complete!")

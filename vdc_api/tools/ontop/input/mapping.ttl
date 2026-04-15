@@ -1,0 +1,11 @@
+@prefix ex: <http://example.com/> .
+@prefix rr: <http://www.w3.org/ns/r2rml#> .
+
+# Stub mapping — replace with real mappings once datasources are configured in Dremio
+<#DummyMapping>
+  a rr:TriplesMap ;
+  rr:logicalTable [ rr:sqlQuery "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE 1=0" ] ;
+  rr:subjectMap [
+    rr:template "http://example.org/dummy/{TABLE_NAME}" ;
+    rr:class ex:Dummy
+  ] .

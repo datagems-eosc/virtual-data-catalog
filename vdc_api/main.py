@@ -1,8 +1,14 @@
+import logging
 import os
 from fastapi import FastAPI
 import uvicorn
 
 from vdc_api.resources import ontop_configuration
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
 app = FastAPI(
     title="Virtual Data Catalog API",
@@ -26,8 +32,13 @@ def read_root():
             "dataset": {
                 "description": "Add a new dataset to dremio and ontop",
                 "methods": ["POST"],
-                "url": "/api/v1/dataset",
-            }
+                "url": "/api/v1/dataset/{dataset_id}",
+            },
+            "mapping": {
+                "description": "Add a new mapping for a specific dataset",
+                "methods": ["POST"],
+                "url": "/api/v1/mapping/{dataset_id}",
+            },
         },
     }
 

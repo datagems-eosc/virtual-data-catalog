@@ -67,6 +67,28 @@ This will also generate your `uv.lock` file
 
 ## API Usage Examples
 
+The dataset endpoint requires a bearer token and a dataset ID in the URL path.
+
+Get API status:
+
+```bash
+curl -X GET "http://localhost:5002/api/v1"
+```
+
+Add a dataset:
+
+```bash
+curl -X POST "http://localhost:5002/api/v1/dataset/<dataset_id>" \
+	-H "accept: application/json" \
+	-H "Authorization: Bearer $TOKEN"
+```
+
+Open Swagger UI:
+
+```bash
+open "http://localhost:5002/api/v1/swagger"
+```
+
 ## Running the API Locally
 You can run the full stack with Docker Compose.
 
@@ -96,7 +118,7 @@ Stop services (keep data):
 docker-compose down
 ```
 
-Do not use `docker-compose down -v` unless you want to delete PostgreSQL and Dremio volumes.
+Do not use `docker-compose down -v` unless you want to delete Docker volumes (including Dremio data).
 
 ## Services And Endpoints
 
@@ -105,11 +127,10 @@ When the Docker Compose stack is running, the following services are available:
 | Service | Purpose | Host endpoint |
 | --- | --- | --- |
 | `api` | FastAPI service | `http://localhost:5002` |
-| `postgres_db` | PostgreSQL database used by Dremio and Ontop | `localhost:5432` |
 | `dremio` | Dremio UI and catalog service | `http://localhost:9047` |
 | `dremio` | Dremio Arrow Flight SQL endpoint | `localhost:32010` |
-| `ontop` | Ontop SPARQL endpoint | `http://localhost:9090/sparql` |
-| `ontop` | Ontop application root | `http://localhost:9090` |
+| `ontop` | Ontop SPARQL endpoint | `http://localhost:8080/sparql` (default, configurable via `SERVER_PORT`) |
+| `ontop` | Ontop application root | `http://localhost:8080` (default, configurable via `SERVER_PORT`) |
 | `dremio_init` | One-shot initialization job that bootstraps Dremio | No public endpoint |
 
 Main API endpoints:
@@ -117,5 +138,5 @@ Main API endpoints:
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `http://localhost:5002/api/v1` | API health/info |
-| `POST` | `http://localhost:5002/api/v1/dataset` | Add dataset (currently mocked flow) |
+| `POST` | `http://localhost:5002/api/v1/dataset/{dataset_id}` | Add dataset (requires Bearer token) |
 | `GET` | `http://localhost:5002/api/v1/swagger` | Swagger UI |

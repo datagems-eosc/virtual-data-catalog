@@ -10,6 +10,9 @@ services:
       - .env
     ports:
       - "${API_PORT:-5002}:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./vdc_api/tools/ontop/input:/app/vdc_api/tools/ontop/input
     depends_on:
       dremio_init:
         condition: service_completed_successfully
@@ -19,36 +22,17 @@ services:
     networks:
       - ontop-network
 
-  postgres_db:
-    image: postgres:15
-    container_name: postgres-endpoint
-    env_file:
-      - .env
-    ports:
-      - "${MAPPED_POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./vdc_api/tools/ontop/data/relational/library.sql:/docker-entrypoint-initdb.d/library.sql:ro
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres_user} -d ${POSTGRES_DB:-library}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ontop-network
-
   ontop:
     image: ontop/ontop:latest
     container_name: ontop-endpoint
     ports:
       - "${SERVER_PORT:-8080}:8080"
     volumes:
-      - ./vdc_api/tools/ontop/input:/opt/ontop/input:ro
+      - ./vdc_api/tools/ontop/input:/opt/ontop/input
       - ./vdc_api/tools/ontop/jdbc:/opt/ontop/jdbc:ro
     environment:
       ONTOP_ONTOLOGY_FILE: /opt/ontop/input/ontology.ttl
-      ONTOP_MAPPING_FILE: /opt/ontop/input/mappings.ttl
+      ONTOP_MAPPING_FILE: /opt/ontop/input/mapping.ttl
       ONTOP_PROPERTIES_FILE: /opt/ontop/input/ontop.properties
       ONTOP_CORS_ALLOWED_ORIGINS: "*"
       ONTOP_DEV_MODE: "true"
@@ -56,8 +40,6 @@ services:
     env_file:
       - .env
     depends_on:
-      postgres_db:
-        condition: service_healthy
       dremio:
         condition: service_healthy
       dremio_init:
@@ -84,9 +66,6 @@ services:
       timeout: 10s
       retries: 10
       start_period: 180s
-    depends_on:
-      postgres_db:
-        condition: service_healthy
     networks:
       - ontop-network
 
@@ -104,14 +83,11 @@ services:
     depends_on:
       dremio:
         condition: service_healthy
-      postgres_db:
-        condition: service_healthy
     restart: "no"
     networks:
       - ontop-network
 
 volumes:
-  postgres_data:
   dremio_data:
 
 networks:
