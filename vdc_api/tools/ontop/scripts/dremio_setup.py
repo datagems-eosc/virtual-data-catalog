@@ -136,6 +136,9 @@ def main():
 
     wait_for_dremio()
 
+    # Validate credentials early so the API does not fail later with 403.
+    get_token()
+
     log("=" * 40)
     log("  Setup Complete!")
     log("  Dremio UI: http://localhost:9047")

@@ -89,6 +89,28 @@ Open Swagger UI:
 open "http://localhost:5002/api/v1/swagger"
 ```
 
+## API Usage Examples
+The API is available at:
+https://datagems-dev.scayle.es/vdc/api/v1
+
+You can interact with it using curl commands, going into the `tests` folder:
+
+```bash
+cd tests
+```
+
+For full request/response walkthroughs, see [API_USAGE.md](API_USAGE.md).
+
+Example assets are organized under:
+- `tests/register`
+
+Primary endpoint URLs (grouped):
+
+- **Dataset lifecycle**
+    - `https://datagems-dev.scayle.es/vdc/api/v1/dataset` — Register datasets to Ontop.
+
+---
+
 ## Running the API Locally
 You can run the full stack with Docker Compose.
 

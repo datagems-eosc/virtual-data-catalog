@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
+import json
+from rdflib import Graph
 
 
 router = APIRouter()
@@ -50,18 +52,30 @@ async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_sche
         )
         raise HTTPException(status_code=500, detail="Failed to add dataset to Dremio")
 
-    # Add mappings to Onto only if the status of the dataset is "ready"
-    status = "unknown"
-    for node in dataset_info.get("nodes", []):
-        if node.get("properties", {}).get("type") == "sc:Dataset":
-            status = node.get("properties", {}).get("status")
+    croissant_graph = Graph()
+    croissant_graph.parse(data=json.dumps(dataset_info), format="json-ld")
 
+    query = """ PREFIX sc: <https://schema.org/>
+                PREFIX dg: <http://datagems.eu/TBD/>
+                SELECT ?status WHERE {
+                    ?dataset a sc:Dataset ;
+                    dg:status ?status .
+                }
+                """
+    status = "unknown"
+    for row in croissant_graph.query(query):
+        status = str(row.status)
+
+    # Add mappings to Onto only if the status of the dataset is "ready"
+    v = ""
     if status == "ready":
         await add_mappings_to_ontop(dataset_info, source_name)
+        v = "Mappings added to Ontop for dataset_id=%s with source_name=%s" % (
+            dataset_id,
+            source_name,
+        )
 
-    return {
-        "message": "Dataset added successfully to Dremio and mappings updated in Ontop if dataset is ready"
-    }
+    return {"message": f"Dataset added successfully to Dremio, {v}", "details": v}
 
 
 async def add_dataset_to_dremio(
@@ -95,7 +109,7 @@ async def add_mappings_to_ontop(dataset_info: dict, source_name: str):
     Generate mapping file for a given dataset and merge it with existing mappings in Ontop, then restart the Ontop container to apply the changes.
     #TODO: We should find where the mappings should be stored and avoid merging all files on each request. Check about multiple input mappings files with ontop
     """
-    mapping_generation.generate_mappings(dataset_info, source_name=source_name)
+    mapping_generation.generate_mappings(dataset_info, source_id=source_name)
     mapping_generation.merge_mapping_files()
     mapping_generation.merge_ontology_files()
 
@@ -110,7 +124,7 @@ async def add_mappings_to_ontop(dataset_info: dict, source_name: str):
     return MockResponse(status_code=201)  # Mock response for demonstration
 
 
-def get_db_name_for_dataset(dataset_info: dict) -> str:
+def get_db_name_for_dataset_pg(dataset_info: dict) -> str:
     """Retrieve the database name from the dataset_info by looking for a node of type "dg:DatabaseConnection" and extracting its name property."""
     name = ""
     for node in dataset_info.get("nodes", []):
@@ -134,7 +148,7 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
     """
     pg_payload = {
         "entityType": "source",
-        "name": source_name,
+        "name": "ds_" + source_name,
         "type": "POSTGRES",
         "config": {
             "hostname": os.getenv("POSTGRES_HOST"),
@@ -271,6 +285,8 @@ async def get_dremio_token() -> str:
         )
 
     url = f"{DREMIO_BASE_URL}/apiv2/login"
+    logger.info("Requesting Dremio token from %s with user %s", url, DREMIO_ADMIN_USER)
+    logger.info("dremio url: %s", DREMIO_BASE_URL)
     payload = {"userName": DREMIO_ADMIN_USER, "password": DREMIO_ADMIN_PASSWORD}
 
     try:
@@ -304,7 +320,7 @@ async def get_dataset_info(dataset_id: str, token) -> dict:
     Get the dataset information from the DMM API for the given dataset_id. The token is used for authentication with the DMM API.
     Returns the dataset information as a dictionary if the request is successful, or raises an HTTPException.
     """
-    request_url = f"{DMM_URL}/dataset/get/{dataset_id}"
+    request_url = f"{DMM_URL}/dataset/get/{dataset_id}?format=croissant"
 
     try:
         timeout = httpx.Timeout(DMM_API_TIMEOUT_SECONDS)
@@ -361,15 +377,40 @@ async def get_dataset_info(dataset_id: str, token) -> dict:
     return dataset_info
 
 
+# Actually we suppose that for a dataset, mimeType is unique, but if there are multiple nodes of type "cr:FileObject" with different encodingFormat, we will take the first one we find.
 def get_mimeType_for_dataset(dataset_info: dict) -> str:
     """Retrieve the mimeType from the dataset_info by looking for a node of type "cr:FileObject" and extracting its encodingFormat property."""
-    for node in dataset_info.get("nodes", []):
-        if node.get("properties", {}).get("type") == "cr:FileObject":
-            mimeType = node.get("properties", {}).get("encodingFormat")
-            if isinstance(mimeType, str) and mimeType:
-                return mimeType
-            if isinstance(mimeType, dict):
-                value = mimeType.get("@value") or mimeType.get("value")
-                if isinstance(value, str) and value:
-                    return value
+    graph = Graph()
+    graph.parse(data=json.dumps(dataset_info), format="json-ld")
+
+    query = """ PREFIX cr: <http://mlcommons.org/croissant/>
+                PREFIX sc: <https://schema.org/>
+                SELECT ?mimeType WHERE {
+                    ?file a cr:FileObject ;
+                    sc:encodingFormat ?mimeType .
+                }
+                """
+
+    results = graph.query(query)
+    for row in results:
+        return str(row.mimeType)
+
+
+def get_db_name_for_dataset(dataset_info: dict) -> str:
+    """Retrieve the database name from the dataset_info"""
+    graph = Graph()
+    graph.parse(data=json.dumps(dataset_info), format="json-ld")
+
+    query = """ PREFIX dg: <http://datagems.eu/TBD/>
+                PREFIX sc: <https://schema.org/>
+                SELECT ?name WHERE {
+                    ?db a dg:DatabaseConnection ;
+                    sc:name ?name .
+                }
+                """
+
+    results = graph.query(query)
+    for row in results:
+        return str(row.name)
+
     return ""

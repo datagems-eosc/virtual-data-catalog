@@ -10,6 +10,7 @@ dependencies = [
     "docker>=7.0.0",
     "fastapi>=0.100.0",
     "httpx>=0.27.0",
+    "PyLD>=2.0.4",
     "python-dotenv>=1.0.1",
     "rdflib>=7.0.0",
     "requests>=2.31.0",
