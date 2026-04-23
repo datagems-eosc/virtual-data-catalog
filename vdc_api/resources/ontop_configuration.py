@@ -421,7 +421,7 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
     return ""
 
 
-@router.get("/ontop/ontology")
+@router.post("/ontop/ontology")
 async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
     ontology_path = os.getenv(
@@ -471,7 +471,7 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
             )
 
 
-@router.get("/ontop/mapping")
+@router.post("/ontop/mapping")
 async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
     mapping_path = os.getenv("ONTOP_MAPPING_PATH", "../tools/ontop/input/mapping.ttl")
@@ -504,7 +504,7 @@ async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
             )
 
 
-@router.get("/ontop/ontop.properties")
+@router.post("/ontop/properties")
 async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
     properties_path = os.getenv(

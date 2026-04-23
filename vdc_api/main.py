@@ -36,18 +36,18 @@ def read_root():
             },
             "ontop/ontology": {
                 "description": "Add a new ontology to ontop",
-                "methods": ["GET"],
+                "methods": ["POST"],
                 "url": "/api/v1/ontop/ontology",
             },
             "ontop/mapping": {
                 "description": "Add a new mapping to ontop",
-                "methods": ["GET"],
+                "methods": ["POST"],
                 "url": "/api/v1/ontop/mapping",
             },
-            "ontop/ontop.properties": {
+            "ontop/properties": {
                 "description": "Get ontop properties",
                 "methods": ["POST"],
-                "url": "/api/v1/ontop/ontop.properties",
+                "url": "/api/v1/ontop/properties",
             },
         },
     }
