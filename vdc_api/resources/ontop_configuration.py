@@ -424,11 +424,15 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
 @router.post("/ontop/ontology")
 async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
+    default_properties_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
+    )
+
     ontology_path = os.getenv(
-        "ONTOP_ONTOLOGY_PATH", "../tools/ontop/input/ontology.ttl"
+        "ONTOP_ONTOLOGY_PATH", default_properties_path + "/ontology.ttl"
     )
     ontology_folder = os.getenv(
-        "ONTOP_ONTOLOGY_FOLDER", "../tools/ontop/input/ontologies"
+        "ONTOP_ONTOLOGY_FOLDER", default_properties_path + "/ontologies"
     )
 
     if not os.path.isfile(ontology_path):
@@ -474,8 +478,16 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
 @router.post("/ontop/mapping")
 async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
-    mapping_path = os.getenv("ONTOP_MAPPING_PATH", "../tools/ontop/input/mapping.ttl")
-    mapping_folder = os.getenv("ONTOP_MAPPING_FOLDER", "../tools/ontop/input/mappings")
+    default_properties_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
+    )
+
+    mapping_path = os.getenv(
+        "ONTOP_MAPPING_PATH", default_properties_path + "/mapping.ttl"
+    )
+    mapping_folder = os.getenv(
+        "ONTOP_MAPPING_FOLDER", default_properties_path + "/mappings"
+    )
     if not os.path.isfile(mapping_path):
         logger.error("Mapping file not found at path: %s", mapping_path)
         raise HTTPException(status_code=404, detail="Mapping file not found")
@@ -507,9 +519,12 @@ async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
 @router.post("/ontop/properties")
 async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
-    properties_path = os.getenv(
-        "ONTOP_PROPERTIES_PATH", "../tools/ontop/input/ontop.properties"
+    default_properties_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), "../../tools/ontop/input/ontop.properties"
+        )
     )
+    properties_path = os.getenv("ONTOP_PROPERTIES_PATH", default_properties_path)
     if not os.path.isfile(properties_path):
         logger.error("ontop.properties file not found at path: %s", properties_path)
         raise HTTPException(status_code=404, detail="ontop.properties file not found")
