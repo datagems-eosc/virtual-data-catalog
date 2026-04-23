@@ -2,7 +2,7 @@ import logging
 import os
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
@@ -517,26 +517,16 @@ async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
 
 
 @router.post("/ontop/properties")
-async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
+async def get_ontop_properties(
+    token: str = Depends(security.oauth2_scheme), file: UploadFile = File(...)
+):
     """Endpoint to retrieve the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
-    default_properties_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__), "../../tools/ontop/input/ontop.properties"
-        )
-    )
-    properties_path = os.getenv("ONTOP_PROPERTIES_PATH", default_properties_path)
-    if not os.path.isfile(properties_path):
-        logger.error("ontop.properties file not found at path: %s", properties_path)
-        raise HTTPException(status_code=404, detail="ontop.properties file not found")
-
     try:
-        with open(properties_path, "r") as f:
+        with open(file, "r") as f:
             properties_content = f.read()
             upload_ontop_properties(properties_content.encode(), "ontop.properties")
     except Exception as e:
-        logger.exception(
-            "Failed to read ontop.properties file at path: %s", properties_path
-        )
+        logger.exception("Failed to read ontop.properties file")
         raise HTTPException(
             status_code=500, detail=f"Error reading ontop.properties file: {str(e)}"
         )
