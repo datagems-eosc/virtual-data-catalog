@@ -414,3 +414,66 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
         return str(row.name)
 
     return ""
+
+
+@router.get("/ontop/ontology")
+async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
+    """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
+    ontology_path = os.getenv(
+        "ONTOP_ONTOLOGY_PATH", "../tools/ontop/input/ontology.ttl"
+    )
+    if not os.path.isfile(ontology_path):
+        logger.error("Ontology file not found at path: %s", ontology_path)
+        raise HTTPException(status_code=404, detail="Ontology file not found")
+
+    try:
+        with open(ontology_path, "r") as f:
+            ontology_content = f.read()
+            return {"ontology": ontology_content}
+    except Exception as e:
+        logger.exception("Failed to read ontology file at path: %s", ontology_path)
+        raise HTTPException(
+            status_code=500, detail=f"Error reading ontology file: {str(e)}"
+        )
+
+
+@router.get("/ontop/mapping")
+async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
+    """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
+    mapping_path = os.getenv("ONTOP_MAPPING_PATH", "../tools/ontop/input/mapping.ttl")
+    if not os.path.isfile(mapping_path):
+        logger.error("Mapping file not found at path: %s", mapping_path)
+        raise HTTPException(status_code=404, detail="Mapping file not found")
+
+    try:
+        with open(mapping_path, "r") as f:
+            mapping_content = f.read()
+            return {"mapping": mapping_content}
+    except Exception as e:
+        logger.exception("Failed to read mapping file at path: %s", mapping_path)
+        raise HTTPException(
+            status_code=500, detail=f"Error reading mapping file: {str(e)}"
+        )
+
+
+@router.get("/ontop/ontop.properties")
+async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
+    """Endpoint to retrieve the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
+    properties_path = os.getenv(
+        "ONTOP_PROPERTIES_PATH", "../tools/ontop/input/ontop.properties"
+    )
+    if not os.path.isfile(properties_path):
+        logger.error("ontop.properties file not found at path: %s", properties_path)
+        raise HTTPException(status_code=404, detail="ontop.properties file not found")
+
+    try:
+        with open(properties_path, "r") as f:
+            properties_content = f.read()
+            return {"ontop.properties": properties_content}
+    except Exception as e:
+        logger.exception(
+            "Failed to read ontop.properties file at path: %s", properties_path
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Error reading ontop.properties file: {str(e)}"
+        )

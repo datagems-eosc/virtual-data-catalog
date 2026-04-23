@@ -33,7 +33,22 @@ def read_root():
                 "description": "Add a new dataset to dremio and ontop",
                 "methods": ["POST"],
                 "url": "/api/v1/dataset/{dataset_id}",
-            }
+            },
+            "ontop/ontology": {
+                "description": "Add a new ontology to ontop",
+                "methods": ["GET"],
+                "url": "/api/v1/ontop/ontology",
+            },
+            "ontop/mapping": {
+                "description": "Add a new mapping to ontop",
+                "methods": ["GET"],
+                "url": "/api/v1/ontop/mapping",
+            },
+            "ontop/ontop.properties": {
+                "description": "Get ontop properties",
+                "methods": ["GET"],
+                "url": "/api/v1/ontop/ontop.properties",
+            },
         },
     }
 

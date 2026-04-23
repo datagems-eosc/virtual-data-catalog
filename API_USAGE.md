@@ -7,12 +7,20 @@ The API is available at:
 
 ## Table of Contents
 
-- [1) Upload a dataset to Ontop
+- [1) Upload a dataset to Ontop(#1-upload-a-dataset-to-ontop)
+- [1) Execute a SPARQL query(#1-execute-a-sparql-query)
 
 ## 1) Upload a Dataset to Ontop
 
 ```bash
 curl -X POST "https://datagems-dev.scayle.es/vdc/api/v1/dataset/8f1e3238-7a21-42e9-89ce-63e74a981af7" \
+-H "accept: application/json" \
+-H "Authorization: Bearer $TOKEN"
+```
+
+## 2) Execute a SPARL query
+```bash
+curl -X POST "https://datagems-dev.scayle.es/vdc/api/v1/sparql" \
 -H "accept: application/json" \
 -H "Authorization: Bearer $TOKEN"
 ```
