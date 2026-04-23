@@ -46,7 +46,7 @@ def read_root():
             },
             "ontop/ontop.properties": {
                 "description": "Get ontop properties",
-                "methods": ["GET"],
+                "methods": ["POST"],
                 "url": "/api/v1/ontop/ontop.properties",
             },
         },

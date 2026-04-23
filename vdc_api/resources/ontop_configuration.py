@@ -7,6 +7,11 @@ import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
 import json
+from vdc_api.tools.S3.ontop_inputs import (
+    upload_ontop_properties,
+    upload_ontology_file,
+    upload_mapping_file,
+)
 from rdflib import Graph
 
 
@@ -422,6 +427,10 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
     ontology_path = os.getenv(
         "ONTOP_ONTOLOGY_PATH", "../tools/ontop/input/ontology.ttl"
     )
+    ontology_folder = os.getenv(
+        "ONTOP_ONTOLOGY_FOLDER", "../tools/ontop/input/ontologies"
+    )
+
     if not os.path.isfile(ontology_path):
         logger.error("Ontology file not found at path: %s", ontology_path)
         raise HTTPException(status_code=404, detail="Ontology file not found")
@@ -435,25 +444,64 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
         raise HTTPException(
             status_code=500, detail=f"Error reading ontology file: {str(e)}"
         )
+        logger.error("Ontology file not found at path: %s", ontology_path)
+        raise HTTPException(status_code=404, detail="Ontology file not found")
+    if os.path.isdir(ontology_folder) and not os.listdir(ontology_folder):
+        logger.error("Ontology folder is empty at path: %s", ontology_folder)
+        raise HTTPException(status_code=404, detail="Ontology folder is empty")
+        try:
+            with open(ontology_path, "r") as f:
+                ontology_content = f.read()
+                return {"ontology": ontology_content}
+        except Exception as e:
+            logger.exception("Failed to read ontology file at path: %s", ontology_path)
+            raise HTTPException(
+                status_code=500, detail=f"Error reading ontology file: {str(e)}"
+            )
+    else:
+        try:
+            for file_name in os.listdir(ontology_folder):
+                merge = Graph()
+                merge.addNTriples(os.path.join(ontology_folder, file_name))
+            upload_ontology_file(merge.serialize(format="nt"), "ontology.ttl")
+        except Exception as e:
+            logger.exception("Failed to read ontology file at path: %s", ontology_path)
+            raise HTTPException(
+                status_code=500, detail=f"Error reading ontology file: {str(e)}"
+            )
 
 
 @router.get("/ontop/mapping")
 async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
     mapping_path = os.getenv("ONTOP_MAPPING_PATH", "../tools/ontop/input/mapping.ttl")
+    mapping_folder = os.getenv("ONTOP_MAPPING_FOLDER", "../tools/ontop/input/mappings")
     if not os.path.isfile(mapping_path):
         logger.error("Mapping file not found at path: %s", mapping_path)
         raise HTTPException(status_code=404, detail="Mapping file not found")
-
-    try:
-        with open(mapping_path, "r") as f:
-            mapping_content = f.read()
-            return {"mapping": mapping_content}
-    except Exception as e:
-        logger.exception("Failed to read mapping file at path: %s", mapping_path)
-        raise HTTPException(
-            status_code=500, detail=f"Error reading mapping file: {str(e)}"
-        )
+    if os.path.isdir(mapping_folder) and not os.listdir(mapping_folder):
+        logger.error("Mapping folder is empty at path: %s", mapping_folder)
+        raise HTTPException(status_code=404, detail="Mapping folder is empty")
+        try:
+            with open(mapping_path, "r") as f:
+                mapping_content = f.read()
+                return {"mapping": mapping_content}
+        except Exception as e:
+            logger.exception("Failed to read mapping file at path: %s", mapping_path)
+            raise HTTPException(
+                status_code=500, detail=f"Error reading mapping file: {str(e)}"
+            )
+    else:
+        try:
+            for file_name in os.listdir(mapping_folder):
+                merge = Graph()
+                merge.addNTriples(os.path.join(mapping_folder, file_name))
+            upload_mapping_file(merge.serialize(format="nt"), "mapping.ttl")
+        except Exception as e:
+            logger.exception("Failed to read mapping file at path: %s", mapping_path)
+            raise HTTPException(
+                status_code=500, detail=f"Error reading mapping file: {str(e)}"
+            )
 
 
 @router.get("/ontop/ontop.properties")
@@ -469,7 +517,7 @@ async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
     try:
         with open(properties_path, "r") as f:
             properties_content = f.read()
-            return {"ontop.properties": properties_content}
+            upload_ontop_properties(properties_content.encode(), "ontop.properties")
     except Exception as e:
         logger.exception(
             "Failed to read ontop.properties file at path: %s", properties_path
