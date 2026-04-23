@@ -15,6 +15,7 @@ dependencies = [
     "rdflib>=7.0.0",
     "requests>=2.31.0",
     "uvicorn[standard]>=0.23.0",
+    "python-multipart>=0.0.6",
 ]
 classifiers = [
     "Intended Audience :: Developers",
