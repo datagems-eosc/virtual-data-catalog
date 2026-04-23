@@ -2,7 +2,7 @@ import logging
 import os
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
