@@ -520,11 +520,10 @@ async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
 async def get_ontop_properties(
     token: str = Depends(security.oauth2_scheme), file: UploadFile = File(...)
 ):
-    """Endpoint to retrieve the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
+    """Endpoint to upload the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
     try:
-        with open(file, "r") as f:
-            properties_content = f.read()
-            upload_ontop_properties(properties_content.encode(), "ontop.properties")
+        content = await file.read()
+        upload_ontop_properties(content, "ontop.properties")
     except Exception as e:
         logger.exception("Failed to read ontop.properties file")
         raise HTTPException(
