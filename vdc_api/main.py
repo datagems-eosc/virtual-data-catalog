@@ -36,18 +36,23 @@ def read_root():
             },
             "ontop/ontology": {
                 "description": "Add a new ontology to ontop",
-                "methods": ["POST"],
+                "methods": ["GET"],
                 "url": "/api/v1/ontop/ontology",
             },
             "ontop/mapping": {
                 "description": "Add a new mapping to ontop",
-                "methods": ["POST"],
+                "methods": ["GET"],
                 "url": "/api/v1/ontop/mapping",
             },
             "ontop/properties": {
                 "description": "Get ontop properties",
-                "methods": ["POST"],
+                "methods": ["GET"],
                 "url": "/api/v1/ontop/properties",
+            },
+            "s3/upload": {
+                "description": "Upload files to S3",
+                "methods": ["POST"],
+                "url": "/api/v1/s3/upload",
             },
         },
     }

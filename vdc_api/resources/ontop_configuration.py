@@ -7,11 +7,7 @@ import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
 import json
-from vdc_api.tools.S3.ontop_inputs import (
-    upload_ontop_properties,
-    upload_ontology_file,
-    upload_mapping_file,
-)
+from vdc_api.tools.S3.ontop_inputs import upload_ontop_properties
 from rdflib import Graph
 
 
@@ -421,7 +417,7 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
     return ""
 
 
-@router.post("/ontop/ontology")
+@router.get("/ontop/ontology")
 async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
     default_properties_path = os.path.abspath(
@@ -431,9 +427,9 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
     ontology_path = os.getenv(
         "ONTOP_ONTOLOGY_PATH", default_properties_path + "/ontology.ttl"
     )
-    ontology_folder = os.getenv(
-        "ONTOP_ONTOLOGY_FOLDER", default_properties_path + "/ontologies"
-    )
+    # ontology_folder = os.getenv(
+    #     "ONTOP_ONTOLOGY_FOLDER", default_properties_path + "/ontologies"
+    # )
 
     if not os.path.isfile(ontology_path):
         logger.error("Ontology file not found at path: %s", ontology_path)
@@ -450,82 +446,104 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
         )
         logger.error("Ontology file not found at path: %s", ontology_path)
         raise HTTPException(status_code=404, detail="Ontology file not found")
-    if os.path.isdir(ontology_folder) and not os.listdir(ontology_folder):
-        logger.error("Ontology folder is empty at path: %s", ontology_folder)
-        raise HTTPException(status_code=404, detail="Ontology folder is empty")
+        # if os.path.isdir(ontology_folder) and not os.listdir(ontology_folder):
+        #     logger.error("Ontology folder is empty at path: %s", ontology_folder)
+        #     raise HTTPException(status_code=404, detail="Ontology folder is empty")
         try:
             with open(ontology_path, "r") as f:
                 ontology_content = f.read()
-                return {"ontology": ontology_content}
+                return ontology_content
         except Exception as e:
             logger.exception("Failed to read ontology file at path: %s", ontology_path)
             raise HTTPException(
                 status_code=500, detail=f"Error reading ontology file: {str(e)}"
             )
-    else:
-        try:
-            for file_name in os.listdir(ontology_folder):
-                merge = Graph()
-                merge.addNTriples(os.path.join(ontology_folder, file_name))
-            upload_ontology_file(merge.serialize(format="nt"), "ontology.ttl")
-        except Exception as e:
-            logger.exception("Failed to read ontology file at path: %s", ontology_path)
-            raise HTTPException(
-                status_code=500, detail=f"Error reading ontology file: {str(e)}"
-            )
+    # else:
+    #     try:
+    #         for file_name in os.listdir(ontology_folder):
+    #             merge = Graph()
+    #             merge.addNTriples(os.path.join(ontology_folder, file_name))
+    #         upload_ontology_file(merge.serialize(format="nt"), "ontology.ttl")
+    #     except Exception as e:
+    #         logger.exception("Failed to read ontology file at path: %s", ontology_path)
+    #         raise HTTPException(
+    #             status_code=500, detail=f"Error reading ontology file: {str(e)}"
+    #         )
 
 
-@router.post("/ontop/mapping")
+@router.get("/ontop/mapping")
 async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
     default_properties_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
     )
-
     mapping_path = os.getenv(
         "ONTOP_MAPPING_PATH", default_properties_path + "/mapping.ttl"
     )
-    mapping_folder = os.getenv(
-        "ONTOP_MAPPING_FOLDER", default_properties_path + "/mappings"
-    )
+    # mapping_folder = os.getenv(
+    #     "ONTOP_MAPPING_FOLDER", default_properties_path + "/mappings"
+    # )
     if not os.path.isfile(mapping_path):
         logger.error("Mapping file not found at path: %s", mapping_path)
         raise HTTPException(status_code=404, detail="Mapping file not found")
-    if os.path.isdir(mapping_folder) and not os.listdir(mapping_folder):
-        logger.error("Mapping folder is empty at path: %s", mapping_folder)
-        raise HTTPException(status_code=404, detail="Mapping folder is empty")
-        try:
-            with open(mapping_path, "r") as f:
-                mapping_content = f.read()
-                return {"mapping": mapping_content}
-        except Exception as e:
-            logger.exception("Failed to read mapping file at path: %s", mapping_path)
-            raise HTTPException(
-                status_code=500, detail=f"Error reading mapping file: {str(e)}"
-            )
-    else:
-        try:
-            for file_name in os.listdir(mapping_folder):
-                merge = Graph()
-                merge.addNTriples(os.path.join(mapping_folder, file_name))
-            upload_mapping_file(merge.serialize(format="nt"), "mapping.ttl")
-        except Exception as e:
-            logger.exception("Failed to read mapping file at path: %s", mapping_path)
-            raise HTTPException(
-                status_code=500, detail=f"Error reading mapping file: {str(e)}"
-            )
+    # if os.path.isdir(mapping_folder) and not os.listdir(mapping_folder):
+    #     logger.error("Mapping folder is empty at path: %s", mapping_folder)
+    #     raise HTTPException(status_code=404, detail="Mapping folder is empty")
+    try:
+        with open(mapping_path, "r") as f:
+            mapping_content = f.read()
+            return mapping_content
+    except Exception as e:
+        logger.exception("Failed to read mapping file at path: %s", mapping_path)
+        raise HTTPException(
+            status_code=500, detail=f"Error reading mapping file: {str(e)}"
+        )
+    # else:
+    # try:
+    #     for file_name in os.listdir(mapping_folder):
+    #         merge = Graph()
+    #         merge.addNTriples(os.path.join(mapping_folder, file_name))
+    #     upload_mapping_file(merge.serialize(format="nt"), "mapping.ttl")
+    # except Exception as e:
+    #     logger.exception("Failed to read mapping file at path: %s", mapping_path)
+    #     raise HTTPException(
+    #         status_code=500, detail=f"Error reading mapping file: {str(e)}"
+    #     )
 
 
-@router.post("/ontop/properties")
-async def get_ontop_properties(
+@router.get("/ontop/properties")
+async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
+    """Endpoint to retrieve the current properties used by Ontop. This can be useful for debugging and verification purposes."""
+    default_properties_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
+    )
+    properties_path = os.getenv(
+        "ONTOP_PROPERTIES_PATH", default_properties_path + "/ontop.properties"
+    )
+
+    if not os.path.isfile(properties_path):
+        logger.error("Properties file not found at path: %s", properties_path)
+        raise HTTPException(status_code=404, detail="Properties file not found")
+
+    try:
+        with open(properties_path, "r") as f:
+            properties_content = f.read()
+            return properties_content
+    except Exception as e:
+        logger.exception("Failed to read properties file at path: %s", properties_path)
+        raise HTTPException(
+            status_code=500, detail=f"Error reading properties file: {str(e)}"
+        )
+
+
+@router.post("/s3/upload")
+async def upload_file(
     token: str = Depends(security.oauth2_scheme), file: UploadFile = File(...)
 ):
-    """Endpoint to upload the current ontop.properties file used by Ontop. This can be useful for debugging and verification purposes."""
+    """Endpoint to upload files to S3."""
     try:
         content = await file.read()
-        upload_ontop_properties(content, "ontop.properties")
+        upload_ontop_properties(content, file.filename)
     except Exception as e:
-        logger.exception("Failed to read ontop.properties file")
-        raise HTTPException(
-            status_code=500, detail=f"Error reading ontop.properties file: {str(e)}"
-        )
+        logger.exception("Failed to read file")
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
