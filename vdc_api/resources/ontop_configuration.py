@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
@@ -28,6 +29,15 @@ DREMIO_ADMIN_PASSWORD = os.getenv("DREMIO_ADMIN_PASSWORD", "vdc-admin1")
 
 DMM_URL = os.getenv("DMM_URL")
 DMM_API_TIMEOUT_SECONDS = float(os.getenv("DMM_API_TIMEOUT_SECONDS", "300"))
+
+S3_DIR = Path(os.environ.get("RESULTS_DIR", "/s3/data-model-management"))
+S3_INPUTS_FOLDER = Path(os.environ.get("RESULTS_FOLDER", "ontop-inputs"))
+S3_INPUTS_MAPPING_FOLDER = Path(
+    os.environ.get("RESULTS_FOLDER", "ontop-inputs/mappings")
+)
+S3_INPUTS_ONTOLOGY_FOLDER = Path(
+    os.environ.get("RESULTS_FOLDER", "ontop-inputs/ontologies")
+)
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
@@ -420,120 +430,46 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
 @router.get("/ontop/ontology")
 async def get_ontop_ontology():
     """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
-    default_properties_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
-    )
-
-    ontology_path = os.getenv(
-        "ONTOP_ONTOLOGY_PATH", default_properties_path + "/ontology.ttl"
-    )
-    # ontology_folder = os.getenv(
-    #     "ONTOP_ONTOLOGY_FOLDER", default_properties_path + "/ontologies"
-    # )
-
-    if not os.path.isfile(ontology_path):
-        logger.error("Ontology file not found at path: %s", ontology_path)
-        raise HTTPException(status_code=404, detail="Ontology file not found")
-
     try:
-        with open(ontology_path, "r") as f:
-            ontology_content = f.read()
-            return {"ontology": ontology_content}
+        # Write the dataset file
+        file = S3_DIR / S3_INPUTS_FOLDER / "ontology.ttl"
+
+        # NOTE: If file name exists we overwrite the file silently
+        with open(file, "r") as f:
+            f_content = f.read()
+            return f_content
     except Exception as e:
-        logger.exception("Failed to read ontology file at path: %s", ontology_path)
-        raise HTTPException(
-            status_code=500, detail=f"Error reading ontology file: {str(e)}"
-        )
-        logger.error("Ontology file not found at path: %s", ontology_path)
-        raise HTTPException(status_code=404, detail="Ontology file not found")
-        # if os.path.isdir(ontology_folder) and not os.listdir(ontology_folder):
-        #     logger.error("Ontology folder is empty at path: %s", ontology_folder)
-        #     raise HTTPException(status_code=404, detail="Ontology folder is empty")
-        try:
-            with open(ontology_path, "r") as f:
-                ontology_content = f.read()
-                return ontology_content
-        except Exception as e:
-            logger.exception("Failed to read ontology file at path: %s", ontology_path)
-            raise HTTPException(
-                status_code=500, detail=f"Error reading ontology file: {str(e)}"
-            )
-    # else:
-    #     try:
-    #         for file_name in os.listdir(ontology_folder):
-    #             merge = Graph()
-    #             merge.addNTriples(os.path.join(ontology_folder, file_name))
-    #         upload_ontology_file(merge.serialize(format="nt"), "ontology.ttl")
-    #     except Exception as e:
-    #         logger.exception("Failed to read ontology file at path: %s", ontology_path)
-    #         raise HTTPException(
-    #             status_code=500, detail=f"Error reading ontology file: {str(e)}"
-    #         )
+        raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
 
 
 @router.get("/ontop/mapping")
 async def get_ontop_mapping():
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
-    default_properties_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
-    )
-    mapping_path = os.getenv(
-        "ONTOP_MAPPING_PATH", default_properties_path + "/mapping.ttl"
-    )
-    # mapping_folder = os.getenv(
-    #     "ONTOP_MAPPING_FOLDER", default_properties_path + "/mappings"
-    # )
-    if not os.path.isfile(mapping_path):
-        logger.error("Mapping file not found at path: %s", mapping_path)
-        raise HTTPException(status_code=404, detail="Mapping file not found")
-    # if os.path.isdir(mapping_folder) and not os.listdir(mapping_folder):
-    #     logger.error("Mapping folder is empty at path: %s", mapping_folder)
-    #     raise HTTPException(status_code=404, detail="Mapping folder is empty")
     try:
-        with open(mapping_path, "r") as f:
-            mapping_content = f.read()
-            return mapping_content
+        # Write the dataset file
+        file = S3_DIR / S3_INPUTS_FOLDER / "mapping.ttl"
+
+        # NOTE: If file name exists we overwrite the file silently
+        with open(file, "r") as f:
+            f_content = f.read()
+            return f_content
     except Exception as e:
-        logger.exception("Failed to read mapping file at path: %s", mapping_path)
-        raise HTTPException(
-            status_code=500, detail=f"Error reading mapping file: {str(e)}"
-        )
-    # else:
-    # try:
-    #     for file_name in os.listdir(mapping_folder):
-    #         merge = Graph()
-    #         merge.addNTriples(os.path.join(mapping_folder, file_name))
-    #     upload_mapping_file(merge.serialize(format="nt"), "mapping.ttl")
-    # except Exception as e:
-    #     logger.exception("Failed to read mapping file at path: %s", mapping_path)
-    #     raise HTTPException(
-    #         status_code=500, detail=f"Error reading mapping file: {str(e)}"
-    #     )
+        raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
 
 
 @router.get("/ontop/properties")
 async def get_ontop_properties():
     """Endpoint to retrieve the current properties used by Ontop. This can be useful for debugging and verification purposes."""
-    default_properties_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
-    )
-    properties_path = os.getenv(
-        "ONTOP_PROPERTIES_PATH", default_properties_path + "/ontop.properties"
-    )
-
-    if not os.path.isfile(properties_path):
-        logger.error("Properties file not found at path: %s", properties_path)
-        raise HTTPException(status_code=404, detail="Properties file not found")
-
     try:
-        with open(properties_path, "r") as f:
-            properties_content = f.read()
-            return properties_content
+        # Write the dataset file
+        file = S3_DIR / S3_INPUTS_FOLDER / "ontop.properties"
+
+        # NOTE: If file name exists we overwrite the file silently
+        with open(file, "r") as f:
+            f_content = f.read()
+            return f_content
     except Exception as e:
-        logger.exception("Failed to read properties file at path: %s", properties_path)
-        raise HTTPException(
-            status_code=500, detail=f"Error reading properties file: {str(e)}"
-        )
+        raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
 
 
 @router.post("/s3/upload")
