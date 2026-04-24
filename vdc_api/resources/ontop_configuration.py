@@ -429,7 +429,7 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
     return ""
 
 
-@router.get("/ontop/ontology")
+@router.get("/ontop/ontology", response_class=PlainTextResponse)
 async def get_ontop_ontology():
     """Return the Ontop ontology file as raw text."""
     try:
@@ -440,7 +440,7 @@ async def get_ontop_ontology():
         raise RuntimeError(f"Failed to read ontop ontology: {str(e)}")
 
 
-@router.get("/ontop/mapping")
+@router.get("/ontop/mapping", response_class=PlainTextResponse)
 async def get_ontop_mapping():
     """Return the Ontop mapping file as raw text."""
     try:
@@ -469,7 +469,7 @@ async def upload_file(
     """Endpoint to upload files to S3."""
     try:
         content = await file.read()
-        upload_ontop_properties(content.encode("utf-8"), file.filename)
+        upload_ontop_properties(content, file.filename)
     except Exception as e:
         logger.exception("Failed to read file")
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
