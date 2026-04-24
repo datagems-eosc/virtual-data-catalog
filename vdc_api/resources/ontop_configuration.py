@@ -418,7 +418,7 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
 
 
 @router.get("/ontop/ontology")
-async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
+async def get_ontop_ontology():
     """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
     default_properties_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
@@ -472,7 +472,7 @@ async def get_ontop_ontology(token: str = Depends(security.oauth2_scheme)):
 
 
 @router.get("/ontop/mapping")
-async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
+async def get_ontop_mapping():
     """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
     default_properties_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
@@ -512,7 +512,7 @@ async def get_ontop_mapping(token: str = Depends(security.oauth2_scheme)):
 
 
 @router.get("/ontop/properties")
-async def get_ontop_properties(token: str = Depends(security.oauth2_scheme)):
+async def get_ontop_properties():
     """Endpoint to retrieve the current properties used by Ontop. This can be useful for debugging and verification purposes."""
     default_properties_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../tools/ontop/input/")
