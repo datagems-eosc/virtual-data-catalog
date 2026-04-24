@@ -2,8 +2,10 @@ import logging
 import os
 from pathlib import Path
 
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi.responses import PlainTextResponse
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import docker
@@ -429,45 +431,33 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
 
 @router.get("/ontop/ontology")
 async def get_ontop_ontology():
-    """Endpoint to retrieve the current ontology used by Ontop. This can be useful for debugging and verification purposes."""
+    """Return the Ontop ontology file as raw text."""
     try:
-        # Write the dataset file
         file = S3_DIR / S3_INPUTS_FOLDER / "ontology.ttl"
-
-        # NOTE: If file name exists we overwrite the file silently
         with open(file, "r") as f:
-            f_content = f.read()
-            return f_content
+            return f.read()
     except Exception as e:
-        raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
+        raise RuntimeError(f"Failed to read ontop ontology: {str(e)}")
 
 
 @router.get("/ontop/mapping")
 async def get_ontop_mapping():
-    """Endpoint to retrieve the current mapping used by Ontop. This can be useful for debugging and verification purposes."""
+    """Return the Ontop mapping file as raw text."""
     try:
-        # Write the dataset file
         file = S3_DIR / S3_INPUTS_FOLDER / "mapping.ttl"
-
-        # NOTE: If file name exists we overwrite the file silently
         with open(file, "r") as f:
-            f_content = f.read()
-            return f_content
+            return f.read()
     except Exception as e:
-        raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
+        raise RuntimeError(f"Failed to read ontop mapping: {str(e)}")
 
 
-@router.get("/ontop/properties")
+@router.get("/ontop/properties", response_class=PlainTextResponse)
 async def get_ontop_properties():
-    """Endpoint to retrieve the current properties used by Ontop. This can be useful for debugging and verification purposes."""
+    """Return the Ontop properties file as raw text."""
     try:
-        # Write the dataset file
         file = S3_DIR / S3_INPUTS_FOLDER / "ontop.properties"
-
-        # NOTE: If file name exists we overwrite the file silently
         with open(file, "r") as f:
-            f_content = f.read()
-            return f_content
+            return f.read()
     except Exception as e:
         raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
 
