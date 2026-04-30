@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from rdflib import Graph, Namespace, BNode, Literal, RDF, URIRef
-from vdc_api.resources.ontop_configuration import (
+from vdc_api.tools.S3.ontop_inputs import (
     upload_mapping_file,
     upload_ontology_file,
 )

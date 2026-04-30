@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import PlainTextResponse
@@ -11,7 +10,6 @@ import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import json
 from vdc_api.tools.S3.ontop_inputs import upload_ontop_properties
 from rdflib import Graph
-
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
