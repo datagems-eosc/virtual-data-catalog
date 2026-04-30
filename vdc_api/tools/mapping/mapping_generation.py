@@ -151,7 +151,7 @@ def merge_ontology_files() -> None:
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
-
+    logger.info("Triples: %d", len(mappings))
     upload_mapping_file(
         mappings.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
     )
@@ -162,7 +162,7 @@ def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public
 
 def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
     dataset_id = croissant_dict.get("@id", "unknown_dataset")
-
+    logger.info("Dataset ID: %s", dataset_id)
     mappings = Graph()
     mappings.bind("rr", RR)
     extracted_schema = extract_schema(croissant_dict)
