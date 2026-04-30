@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import PlainTextResponse
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
-import docker
 import json
 from vdc_api.tools.S3.ontop_inputs import upload_ontop_properties
 from rdflib import Graph
@@ -127,16 +126,17 @@ async def add_mappings_to_ontop(dataset_info: dict, source_name: str):
     #TODO: We should find where the mappings should be stored and avoid merging all files on each request. Check about multiple input mappings files with ontop
     """
     mapping_generation.generate_mappings(dataset_info, source_id=source_name)
-    mapping_generation.merge_mapping_files()
-    mapping_generation.merge_ontology_files()
 
-    try:
-        client = docker.from_env()
-        container = client.containers.get("ontop-endpoint")
-        container.restart()
-        logger.info("Ontop container restarted successfully")
-    except Exception:
-        logger.exception("Failed to restart Ontop container")
+    # mapping_generation.merge_mapping_files()
+    # mapping_generation.merge_ontology_files()
+
+    # try:
+    #     client = docker.from_env()
+    #     container = client.containers.get("ontop-endpoint")
+    #     container.restart()
+    #     logger.info("Ontop container restarted successfully")
+    # except Exception:
+    #     logger.exception("Failed to restart Ontop container")
 
     return MockResponse(status_code=201)  # Mock response for demonstration
 
@@ -437,9 +437,18 @@ def get_db_name_for_dataset(dataset_info: dict) -> str:
 async def get_ontop_ontology():
     """Return the Ontop ontology file as raw text."""
     try:
-        file = S3_DIR / S3_INPUTS_FOLDER / "ontology.ttl"
-        with open(file, "r") as f:
-            return f.read()
+        folder = S3_DIR / S3_INPUTS_FOLDER / "ontologies"
+        if not folder.empty():
+            ontology = Graph()
+            for file in folder.iterdir():
+                if file.is_file() and file.suffix in [".ttl"]:
+                    with open(file, "r") as f:
+                        ontology.parse(data=f.read(), format="turtle")
+            return ontology.serialize(format="turtle")
+        else:
+            file = S3_DIR / S3_INPUTS_FOLDER / "ontology.ttl"
+            with open(file, "r") as f:
+                return f.read()
     except Exception as e:
         raise RuntimeError(f"Failed to read ontop ontology: {str(e)}")
 
@@ -448,9 +457,18 @@ async def get_ontop_ontology():
 async def get_ontop_mapping():
     """Return the Ontop mapping file as raw text."""
     try:
-        file = S3_DIR / S3_INPUTS_FOLDER / "mapping.ttl"
-        with open(file, "r") as f:
-            return f.read()
+        folder = S3_DIR / S3_INPUTS_FOLDER / "mappings"
+        if not folder.empty():
+            mappings = Graph()
+            for file in folder.iterdir():
+                if file.is_file() and file.suffix in [".ttl"]:
+                    with open(file, "r") as f:
+                        mappings.parse(data=f.read(), format="turtle")
+            return mappings.serialize(format="turtle")
+        else:
+            file = S3_DIR / S3_INPUTS_FOLDER / "mapping.ttl"
+            with open(file, "r") as f:
+                return f.read()
     except Exception as e:
         raise RuntimeError(f"Failed to read ontop mapping: {str(e)}")
 

@@ -4,6 +4,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from rdflib import Graph, Namespace, BNode, Literal, RDF, URIRef
+from vdc_api.resources.ontop_configuration import (
+    upload_mapping_file,
+    upload_ontology_file,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -145,19 +149,15 @@ def merge_ontology_files() -> None:
 
 
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
-    mapping_file = MAPPINGS_DIR / f"{source_id}.ttl"
-    ontology_file = ONTOLOGIES_DIR / f"{source_id}.ttl"
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
 
-    MAPPINGS_DIR.mkdir(parents=True, exist_ok=True)
-    ONTOLOGIES_DIR.mkdir(parents=True, exist_ok=True)
-
-    with open(mapping_file, "w") as f:
-        f.write(mappings.serialize(format="turtle"))
-
-    with open(ontology_file, "w") as f:
-        f.write(ontology.serialize(format="turtle"))
+    upload_mapping_file(
+        mappings.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
+    )
+    upload_ontology_file(
+        ontology.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
+    )
 
 
 def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
