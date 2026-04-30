@@ -23,11 +23,15 @@ class MockResponse:
         self.status_code = status_code
 
 
-DREMIO_BASE_URL = (
-    f"http://{os.getenv('DREMIO_HOST', 'dremio')}:{os.getenv('DREMIO_PORT', '9047')}"
-)
+DREMIO_HOST = os.getenv("DREMIO_HOST", "dremio-coordinator")
+DREMIO_PORT = int(os.getenv("DREMIO_PORT", "9047"))
+DREMIO_BASE_URL = f"http://{DREMIO_HOST}:{DREMIO_PORT}"
+
 DREMIO_ADMIN_USER = os.getenv("DREMIO_ADMIN_USER", "vdc")
 DREMIO_ADMIN_PASSWORD = os.getenv("DREMIO_ADMIN_PASSWORD", "vdc-admin1")
+DREMIO_ADMIN_FIRSTNAME = os.getenv("DREMIO_ADMIN_FIRSTNAME", "Admin")
+DREMIO_ADMIN_LASTNAME = os.getenv("DREMIO_ADMIN_LASTNAME", "User")
+DREMIO_ADMIN_EMAIL = os.getenv("DREMIO_ADMIN_EMAIL", "admin@example.com")
 
 DMM_URL = os.getenv("DMM_URL")
 DMM_API_TIMEOUT_SECONDS = float(os.getenv("DMM_API_TIMEOUT_SECONDS", "300"))
