@@ -436,10 +436,12 @@ async def get_ontop_ontology():
     """Return the Ontop ontology file as raw text."""
     try:
         folder = S3_DIR / S3_INPUTS_FOLDER / "ontologies"
-        if not folder.empty():
+        if folder.exists() and any(
+            f.is_file() and f.suffix == ".ttl" for f in folder.iterdir()
+        ):
             ontology = Graph()
             for file in folder.iterdir():
-                if file.is_file() and file.suffix in [".ttl"]:
+                if file.is_file() and file.suffix == ".ttl":
                     with open(file, "r") as f:
                         ontology.parse(data=f.read(), format="turtle")
             return ontology.serialize(format="turtle")
@@ -456,10 +458,12 @@ async def get_ontop_mapping():
     """Return the Ontop mapping file as raw text."""
     try:
         folder = S3_DIR / S3_INPUTS_FOLDER / "mappings"
-        if not folder.empty():
+        if folder.exists() and any(
+            f.is_file() and f.suffix == ".ttl" for f in folder.iterdir()
+        ):
             mappings = Graph()
             for file in folder.iterdir():
-                if file.is_file() and file.suffix in [".ttl"]:
+                if file.is_file() and file.suffix == ".ttl":
                     with open(file, "r") as f:
                         mappings.parse(data=f.read(), format="turtle")
             return mappings.serialize(format="turtle")
