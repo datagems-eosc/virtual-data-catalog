@@ -320,7 +320,7 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                         )
                     )
 
-                    query = f"""PREFIX cr: <http://mlcommons.org/croissant/> . d: <http://datagems-dev.scayle.es#>
+                    query = f"""PREFIX cr: <http://mlcommons.org/croissant/> . PREFIX d: <http://datagems-dev.scayle.es#> .
                             SELECT ?dataType WHERE {{ d:{field} cr:dataType ?dataType. }}"""
                     # print(query)
                     results = croissant_graph.query(query)
