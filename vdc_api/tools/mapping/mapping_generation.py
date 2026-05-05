@@ -164,7 +164,7 @@ def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public
 
 
 def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
-    dataset_id = croissant_dict.get("@id", "unknown_dataset")
+    dataset_id = croissant_dict.get("@id", "unknown_dataset").split(":")[-1]
     mappings = Graph()
     mappings.bind("rr", RR)
     extracted_schema = extract_schema(croissant_dict)
@@ -238,7 +238,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
 
 
 def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public"):
-    dataset_id = croissant_dict.get("@id", "unknown_dataset")
+    dataset_id = croissant_dict.get("@id", "unknown_dataset").split(":")[-1]
     croissant_graph = Graph()
     croissant_graph.parse(data=json.dumps(croissant_dict), format="json-ld")
     ontology = Graph()
@@ -322,7 +322,7 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                     logger.info("Field '%s'", field)
                     query = f"""
                     PREFIX cr: <http://mlcommons.org/croissant/>
-                    PREFIX d: <http://datagems-dev.scayle.es#>
+                    PREFIX d: <http://datagems-dev.scayle.es/>
 
                     SELECT ?dataType WHERE {{
                         <{field}> cr:dataType ?dataType .
@@ -546,7 +546,7 @@ def isBinaryTable(table, details):
 
 
 def add_uri_prefix_to_croissant(
-    croissant_dict, base_uri="http://datagems-dev.scayle.es#"
+    croissant_dict, base_uri="http://datagems-dev.scayle.es/"
 ):
     new_dict = copy.deepcopy(croissant_dict)
     context = new_dict.get("@context", {})
