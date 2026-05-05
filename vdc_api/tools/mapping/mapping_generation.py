@@ -150,8 +150,8 @@ def merge_ontology_files() -> None:
 
 
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
-    logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     add_uri_prefix_to_croissant(croissant_dict)
+    logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
     logger.info("Triples: %d", len(mappings))
