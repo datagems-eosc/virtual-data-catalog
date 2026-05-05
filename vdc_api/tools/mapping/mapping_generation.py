@@ -319,10 +319,16 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                             URIRef("http://www.w3.org/2002/07/owl#DatatypeProperty"),
                         )
                     )
+                    logger.info("Field '%s'", field)
+                    query = f"""
+                    PREFIX cr: <http://mlcommons.org/croissant/>
+                    PREFIX d: <http://datagems-dev.scayle.es#>
 
-                    query = f"""PREFIX cr: <http://mlcommons.org/croissant/>
-                                PREFIX d: <http://datagems-dev.scayle.es#>
-                            SELECT ?dataType WHERE {{ d:{field} cr:dataType ?dataType. }}"""
+                    SELECT ?dataType WHERE {{
+                        d:{field} cr:dataType ?dataType .
+                    }}
+                    """
+
                     # print(query)
                     results = croissant_graph.query(query)
                     for row in results:
