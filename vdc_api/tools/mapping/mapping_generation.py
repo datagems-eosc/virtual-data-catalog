@@ -1,6 +1,7 @@
 import logging
 import json
 from pathlib import Path
+from shutil import copy
 from urllib.parse import urlparse
 
 from rdflib import Graph, Namespace, BNode, Literal, RDF, URIRef
@@ -150,6 +151,7 @@ def merge_ontology_files() -> None:
 
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
     logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
+    add_uri_prefix_to_croissant(croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
     logger.info("Triples: %d", len(mappings))
@@ -163,10 +165,10 @@ def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public
 
 def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
     dataset_id = croissant_dict.get("@id", "unknown_dataset")
-    logger.info("Croissant dict: %s", croissant_dict)
     mappings = Graph()
     mappings.bind("rr", RR)
     extracted_schema = extract_schema(croissant_dict)
+    logger.info("Extracted schema: %s", json.dumps(extracted_schema, indent=2))
     for index, (table, details) in enumerate(extracted_schema.items(), start=1):
         table_name = details.get("recordset_name", table)
         field_specs = []
@@ -189,7 +191,6 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
             projection_sql.append(
                 _build_projection_sql(source_column, field_name, strategy["mode"])
             )
-
         triples_map = URIRef(f"#TripleMapping{index}")
         mappings.add((triples_map, RDF.type, RR.TriplesMap))
         logical_table = BNode()
@@ -244,7 +245,6 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
     ontology.bind("ex", EX)
 
     extracted_schema = extract_schema(croissant_dict)
-    print(json.dumps(extracted_schema, indent=2))
     # Generation of the classes in the ontology
     for table, details in extracted_schema.items():
         recordset_name = details.get("recordset_name", table)
@@ -320,8 +320,8 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                         )
                     )
 
-                    query = f"""PREFIX cr: <http://mlcommons.org/croissant/>
-                            SELECT ?dataType WHERE {{ <file:///Users/zoech/Documents/projects/datagems/code/mapping-generation/{field}> cr:dataType ?dataType. }}"""
+                    query = f"""PREFIX cr: <http://mlcommons.org/croissant/> . d: <http://datagems-dev.scayle.es#>
+                            SELECT ?dataType WHERE {{ d:{field} cr:dataType ?dataType. }}"""
                     # print(query)
                     results = croissant_graph.query(query)
                     for row in results:
@@ -536,3 +536,38 @@ def isBinaryTable(table, details):
     if len(fk_columns) != 2:
         return False
     return set(fk_columns) == set(primary_keys) and set(fk_columns) == set(columns)
+
+
+def add_uri_prefix_to_croissant(
+    croissant_dict, base_uri="[datagems-dev.scayle.es](http://datagems-dev.scayle.es#)"
+):
+    new_dict = copy.deepcopy(croissant_dict)
+    context = new_dict.get("@context", {})
+    if isinstance(context, dict):
+        context["d:"] = base_uri
+        new_dict["@context"] = context
+    new_dict = recurse(new_dict)
+    return new_dict
+
+
+def maybe_prefix(value):
+    if isinstance(value, str) and not value.startswith(
+        ("http://", "https://", ":", "_")
+    ):
+        return f"d:{value}"
+    return value
+
+
+def recurse(obj):
+    if isinstance(obj, dict):
+        new_obj = {}
+        for k, v in obj.items():
+            if k == "@id":
+                new_obj[k] = maybe_prefix(v)
+            else:
+                new_obj[k] = recurse(v)
+                return new_obj
+    elif isinstance(obj, list):
+        return [recurse(v) for v in obj]
+    else:
+        return obj
