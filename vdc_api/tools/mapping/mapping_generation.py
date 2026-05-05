@@ -1,7 +1,7 @@
 import logging
 import json
 from pathlib import Path
-from shutil import copy
+import copy
 from urllib.parse import urlparse
 
 from rdflib import Graph, Namespace, BNode, Literal, RDF, URIRef
