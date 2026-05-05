@@ -325,7 +325,7 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                     PREFIX d: <http://datagems-dev.scayle.es#>
 
                     SELECT ?dataType WHERE {{
-                        d:{field} cr:dataType ?dataType .
+                        <{field}> cr:dataType ?dataType .
                     }}
                     """
 
