@@ -422,7 +422,7 @@ def extract_schema(croissant_data):
     for row in graph.query(core_query):
         table_name = uuid_tail(row.recordSet)
         table_label = str(row.recordSetName) if row.recordSetName else table_name
-        column_name = uuid_tail(row.field)
+        column_name = row.field
         column_label = str(row.fieldName) if row.fieldName else column_name
         source_column = str(row.sourceColumn) if row.sourceColumn else column_label
         data_type = str(row.dataType) if row.dataType else None
@@ -493,7 +493,7 @@ def extract_schema(croissant_data):
     for row in graph.query(fk_query):
         table_name = uuid_tail(row.recordSet)
         table_label = str(row.recordSetName) if row.recordSetName else table_name
-        column_name = uuid_tail(row.field)
+        column_name = row.field
         column_label = str(row.fieldName) if row.fieldName else column_name
         target_table = uuid_tail(row.targetRecordSet)
         target_table_label = (
