@@ -149,6 +149,7 @@ def merge_ontology_files() -> None:
 
 
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
+    logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
     logger.info("Triples: %d", len(mappings))
@@ -162,7 +163,7 @@ def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public
 
 def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
     dataset_id = croissant_dict.get("@id", "unknown_dataset")
-    logger.info("Dataset ID: %s", dataset_id)
+    logger.info("Croissant dict: %s", croissant_dict)
     mappings = Graph()
     mappings.bind("rr", RR)
     extracted_schema = extract_schema(croissant_dict)
@@ -195,7 +196,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         sql_query = (
-            f"SELECT {', '.join(projection_sql)}, UUID() AS uuid "
+            f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() OVER (ORDER BY projection_sql[0]) AS uuid "
             f"FROM {_quote_identifier("ds_" + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
         )
         mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
