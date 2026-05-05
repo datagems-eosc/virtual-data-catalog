@@ -150,7 +150,7 @@ def merge_ontology_files() -> None:
 
 
 def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
-    add_uri_prefix_to_croissant(croissant_dict)
+    croissant_dict = add_uri_prefix_to_croissant(croissant_dict)
     logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
@@ -539,35 +539,38 @@ def isBinaryTable(table, details):
 
 
 def add_uri_prefix_to_croissant(
-    croissant_dict, base_uri="[datagems-dev.scayle.es](http://datagems-dev.scayle.es#)"
+    croissant_dict, base_uri="http://datagems-dev.scayle.es#"
 ):
     new_dict = copy.deepcopy(croissant_dict)
     context = new_dict.get("@context", {})
     if isinstance(context, dict):
-        context["d:"] = base_uri
+        context["d"] = base_uri
         new_dict["@context"] = context
     new_dict = recurse(new_dict)
     return new_dict
 
 
 def maybe_prefix(value):
-    if isinstance(value, str) and not value.startswith(
-        ("http://", "https://", ":", "_")
+    if (
+        isinstance(value, str)
+        and not value.startswith(("http://", "https://", "_"))
+        and ":" not in value
     ):
         return f"d:{value}"
     return value
 
 
-def recurse(obj):
+def recurse(obj, in_context=False):
     if isinstance(obj, dict):
         new_obj = {}
         for k, v in obj.items():
-            if k == "@id":
+            child_in_context = in_context or k == "@context"
+            if k == "@id" and not in_context:
                 new_obj[k] = maybe_prefix(v)
             else:
-                new_obj[k] = recurse(v)
-                return new_obj
+                new_obj[k] = recurse(v, in_context=child_in_context)
+        return new_obj
     elif isinstance(obj, list):
-        return [recurse(v) for v in obj]
+        return [recurse(v, in_context=in_context) for v in obj]
     else:
         return obj
