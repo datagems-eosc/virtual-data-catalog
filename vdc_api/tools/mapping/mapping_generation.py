@@ -173,12 +173,14 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         table_name = details.get("recordset_name", table)
         field_specs = []
         projection_sql = []
-
+        id = False
         for field in details["columns"]:
             field_name = details.get("column_names", {}).get(field, field)
             field_info = details.get("field_metadata", {}).get(field, {})
             source_column = field_info.get("source_column") or field_name
             strategy = _infer_field_strategy(field_name, field_info)
+            if source_column == "id":
+                id = True
 
             field_specs.append(
                 {
@@ -196,10 +198,16 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         logical_table = BNode()
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
-        sql_query = (
-            f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() OVER () AS uuid "
-            f"FROM {_quote_identifier("ds_" + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
-        )
+        if id:
+            sql_query = (
+                f"SELECT {', '.join(projection_sql)}"
+                f"FROM {_quote_identifier('ds_' + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
+            )
+        else:
+            sql_query = (
+                f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() OVER () AS id "
+                f"FROM {_quote_identifier("ds_" + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
+            )
         mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
 
         subject_map = BNode()
@@ -209,7 +217,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
             (
                 subject_map,
                 RR.template,
-                Literal(f"http://example.com/{dataset_id}/{table_name}/{{uuid}}"),
+                Literal(f"http://example.com/{dataset_id}/{table_name}/{{id}}"),
             )
         )
 
