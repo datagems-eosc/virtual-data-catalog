@@ -519,7 +519,7 @@ async def execute_sparql_query(
         "Accept": "application/sparql-results+json",
     }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(ONTOP_SPARQL_URL, content=query, headers=headers)
 
     if resp.status_code != 200:
