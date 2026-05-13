@@ -59,19 +59,6 @@ async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_sche
     Returns a success message if the dataset was added successfully.
     """
     dataset_info = await get_dataset_info(dataset_id, token)
-    source_name = dataset_id
-
-    # Add dataset to Dremio
-    dremio_response = await add_dataset_to_dremio(
-        dataset_id, token, dataset_info, source_name
-    )
-    if dremio_response.status_code != 201:
-        logger.error(
-            "Dremio dataset creation failed for dataset_id=%s with status_code=%s",
-            dataset_id,
-            dremio_response.status_code,
-        )
-        raise HTTPException(status_code=500, detail="Failed to add dataset to Dremio")
 
     croissant_graph = Graph()
     croissant_graph.parse(data=json.dumps(dataset_info), format="json-ld")
@@ -89,13 +76,35 @@ async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_sche
 
     # Add mappings to Onto only if the status of the dataset is "ready"
     v = ""
-    if status == "ready":
-        await add_mappings_to_ontop(dataset_info, source_name)
-        v = "Mappings added to Ontop for dataset_id=%s with source_name=%s" % (
+    if status != "ready":
+        logger.warning(
+            "Dataset_id=%s has status=%s, skipping Dremio and Ontop configuration",
             dataset_id,
-            source_name,
+            status,
         )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dataset status is '{status}'. The full profile is not uploaded yet, so the dataset cannot be added to Dremio or Ontop. Please wait until the dataset is fully ready.",
+        )
+    source_name = dataset_id
 
+    # Add dataset to Dremio
+    dremio_response = await add_dataset_to_dremio(
+        dataset_id, token, dataset_info, source_name
+    )
+    if dremio_response.status_code != 201:
+        logger.error(
+            "Dremio dataset creation failed for dataset_id=%s with status_code=%s",
+            dataset_id,
+            dremio_response.status_code,
+        )
+        raise HTTPException(status_code=500, detail="Failed to add dataset to Dremio")
+
+    await add_mappings_to_ontop(dataset_info, source_name)
+    v = "Mappings added to Ontop for dataset_id=%s with source_name=%s" % (
+        dataset_id,
+        source_name,
+    )
     return {"message": f"Dataset added successfully to Dremio, {v}", "details": v}
 
 
