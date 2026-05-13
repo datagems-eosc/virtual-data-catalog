@@ -197,7 +197,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         sql_query = (
-            f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() AS uuid "
+            f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() OVER () AS uuid "
             f"FROM {_quote_identifier("ds_" + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
         )
         mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
