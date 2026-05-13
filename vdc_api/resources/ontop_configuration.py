@@ -5,6 +5,7 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
 import vdc_api.resources.security as security
 import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import json
@@ -43,6 +44,10 @@ S3_INPUTS_ONTOLOGY_FOLDER = Path(
 )
 
 ONTOP_SPARQL_URL = os.getenv("ONTOP_SPARQL_URL", "http://ontop:8080/sparql")
+
+
+class SparqlRequest(BaseModel):
+    query: str
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
@@ -503,9 +508,10 @@ async def upload_file(
 
 @router.post("/query/sparql")
 async def execute_sparql_query(
-    query: str, token: str = Depends(security.oauth2_scheme)
+    body: SparqlRequest, token: str = Depends(security.oauth2_scheme)
 ):
     """Endpoint to execute SPARQL queries against the Ontop endpoint."""
+    query = body.query
     logger.info("Received SPARQL query: %s", query)
 
     headers = {
