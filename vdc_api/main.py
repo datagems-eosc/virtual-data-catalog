@@ -54,6 +54,11 @@ def read_root():
                 "methods": ["POST"],
                 "url": "/api/v1/s3/upload",
             },
+            "query/sparql": {
+                "description": "Execute SPARQL queries against the Ontop endpoint",
+                "methods": ["POST"],
+                "url": "/api/v1/query/sparql",
+            },
         },
     }
 

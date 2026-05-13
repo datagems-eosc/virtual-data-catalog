@@ -42,6 +42,8 @@ S3_INPUTS_ONTOLOGY_FOLDER = Path(
     os.environ.get("RESULTS_FOLDER", "ontop-inputs/ontologies")
 )
 
+ONTOP_SPARQL_URL = os.getenv("ONTOP_SPARQL_URL", "http://ontop:8080/sparql")
+
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
 async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_scheme)):
@@ -497,3 +499,26 @@ async def upload_file(
     except Exception as e:
         logger.exception("Failed to read file")
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@router.post("/query/sparql")
+async def execute_sparql_query(
+    query: str, token: str = Depends(security.oauth2_scheme)
+):
+    """Endpoint to execute SPARQL queries against the Ontop endpoint."""
+    logger.info("Received SPARQL query: %s", query)
+
+    headers = {
+        "Content-Type": "application/sparql-query",
+        "Accept": "application/sparql-results+json",
+    }
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(ONTOP_SPARQL_URL, content=query, headers=headers)
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=500, detail=f"Ontop SPARQL query failed: {resp.text}"
+        )
+
+    return resp.json()
