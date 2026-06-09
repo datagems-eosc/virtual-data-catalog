@@ -31,6 +31,7 @@ DREMIO_ADMIN_FIRSTNAME = os.getenv("DREMIO_ADMIN_FIRSTNAME", "Admin")
 DREMIO_ADMIN_LASTNAME = os.getenv("DREMIO_ADMIN_LASTNAME", "User")
 DREMIO_ADMIN_EMAIL = os.getenv("DREMIO_ADMIN_EMAIL", "admin@example.com")
 
+
 DMM_URL = os.getenv("DMM_URL")
 DMM_API_TIMEOUT_SECONDS = float(os.getenv("DMM_API_TIMEOUT_SECONDS", "300"))
 
@@ -70,21 +71,21 @@ async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_sche
                     dg:status ?status .
                 }
                 """
-    status = "unknown"
+    dataset_status = "unknown"
     for row in croissant_graph.query(query):
-        status = str(row.status)
+        dataset_status = str(row.status)
 
     # Add mappings to Onto only if the status of the dataset is "ready"
     v = ""
-    if status != "ready":
+    if dataset_status != "ready":
         logger.warning(
             "Dataset_id=%s has status=%s, skipping Dremio and Ontop configuration",
             dataset_id,
-            status,
+            dataset_status,
         )
         raise HTTPException(
             status_code=400,
-            detail=f"Dataset status is '{status}'. The full profile is not uploaded yet, so the dataset cannot be added to Dremio or Ontop. Please wait until the dataset is fully ready.",
+            detail=f"Dataset status is '{dataset_status}'. The full profile is not uploaded yet, so the dataset cannot be added to Dremio or Ontop. Please wait until the dataset is fully ready.",
         )
     source_name = dataset_id
 
@@ -105,7 +106,11 @@ async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_sche
         dataset_id,
         source_name,
     )
-    return {"message": f"Dataset added successfully to Dremio, {v}", "details": v}
+    return {
+        "status": dataset_status,
+        "message": f"Dataset added successfully to Dremio, {v}",
+        "details": v,
+    }
 
 
 async def add_dataset_to_dremio(
@@ -228,56 +233,20 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     The connection details are retrieved from environment variables.
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
-    source_name = os.getenv("S3_SOURCE_NAME", f"s3-csv-{dataset_id}")
-    bucket = os.getenv("S3_BUCKET")
-    if not bucket:
-        logger.error("Missing required S3_BUCKET for CSV source creation")
-        return False
-
-    endpoint = os.getenv("S3_ENDPOINT")
-    region = os.getenv("S3_REGION", "us-east-1")
-    access_key = os.getenv("S3_ACCESS_KEY")
-    secret_key = os.getenv("S3_SECRET_KEY")
-
-    credential_type = "ACCESS_KEY" if access_key and secret_key else "NONE"
-
-    property_list = [
-        {"name": "fs.s3a.endpoint.region", "value": region},
-        {
-            "name": "fs.s3a.path.style.access",
-            "value": os.getenv("S3_PATH_STYLE", "false"),
-        },
-        {
-            "name": "fs.s3a.connection.ssl.enabled",
-            "value": os.getenv("S3_SSL_ENABLED", "true"),
-        },
-        {"name": "store.s3.async", "value": "true"},
-    ]
-    if endpoint:
-        property_list.append({"name": "fs.s3a.endpoint", "value": endpoint})
+    source_name = "ds_" + dataset_id
 
     s3_payload = {
         "entityType": "source",
         "name": source_name,
-        "type": "S3",
+        "type": "NAS",
         "config": {
-            "credentialType": credential_type,
-            "accessKey": access_key or "",
-            "accessSecret": secret_key or "",
-            "secure": os.getenv("S3_SSL_ENABLED", "true").lower() == "true",
-            "compatibilityMode": bool(endpoint),
-            "whitelistedBuckets": [bucket],
-            "propertyList": property_list,
+            "path": f"/s3/dataset/{dataset_id}/",
         },
     }
 
     logger.info(
         "Creating S3 CSV source in Dremio: source_name=%s bucket=%s endpoint=%s region=%s credential_type=%s",
         source_name,
-        bucket,
-        endpoint or "aws-default",
-        region,
-        credential_type,
     )
 
     url = f"{DREMIO_BASE_URL}/api/v3/catalog"

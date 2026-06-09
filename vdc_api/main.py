@@ -1,6 +1,8 @@
 import logging
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from vdc_api.resources import ontop_configuration
@@ -21,6 +23,22 @@ app = FastAPI(
 )
 
 app.include_router(ontop_configuration.router, prefix="/api/v1")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status_code": exc.status_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status_code": 500, "detail": str(exc)},
+    )
 
 
 @app.get("/api/v1")
