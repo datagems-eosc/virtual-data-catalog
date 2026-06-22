@@ -274,7 +274,6 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                         r_src.text[:500],
                     )
                     return False
-
             elif source_check.status_code not in (200, 409):
                 logger.error(
                     "Unexpected status checking NAS source '%s': %s",
@@ -283,15 +282,28 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 )
                 return False
 
-            # --- Check dataset folder ---
+            # --- Check dataset folder in NAS source ---
             by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
             r = await client.get(by_path_url, headers=headers)
 
-            # --- CASE 1: Already promoted dataset ---
-            if r.status_code == 200 and r.json().get("entityType") == "dataset":
-                entity_id = r.json().get("id")
+            if r.status_code != 200:
+                logger.error(
+                    "Dataset folder not found or not accessible for dataset_id=%s: %s %s",
+                    dataset_id,
+                    r.status_code,
+                    r.text[:500],
+                )
+                return False
+
+            entity = r.json()
+            entity_type = entity.get("entityType")
+
+            # --- CASE 1: Already promoted dataset at folder level (rare, but keep it) ---
+            if entity_type == "dataset":
+                entity_id = entity.get("id")
                 logger.info(
-                    "Dataset already promoted (id=%s), refreshing...", entity_id
+                    "Dataset already promoted at folder level (id=%s), refreshing...",
+                    entity_id,
                 )
                 encoded_id = quote(entity_id, safe="")
                 r2 = await client.post(
@@ -300,17 +312,13 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 )
                 return r2.status_code in (200, 201)
 
-            # --- CASE 2: Folder exists but not promoted ---
-            if r.status_code == 200 and r.json().get("entityType") in (
-                "folder",
-                "container",
-            ):
-                entity = r.json()
+            # --- CASE 2: Folder/container with CSV files to promote individually ---
+            if entity_type in ("folder", "container"):
                 logger.info("Folder exists; promoting each CSV file inside it...")
 
                 children = entity.get("children", [])
                 csv_files = [
-                    child["path"][-1]
+                    child
                     for child in children
                     if child.get("type") == "FILE"
                     and child["path"][-1].lower().endswith(".csv")
@@ -322,130 +330,30 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     )
                     return False
 
-                for filename in csv_files:
-                    logger.info(
-                        "Promoting file %s for dataset_id=%s", filename, dataset_id
-                    )
-                    # 1. Check if the file already exists as a FILE entity
-                    file_path = [nas_source_name, dataset_id, filename]
-                    file_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/" + "/".join(
-                        file_path
-                    )
+                for child in csv_files:
+                    filename = child["path"][-1]
+                    file_id = child.get("id")
+                    file_path = child.get("path")
 
-                    file_entity = await client.get(file_url, headers=headers)
-
-                    if file_entity.status_code == 200:
-                        file_id = file_entity.json().get("id")
-                        if file_id:
-                            logger.info(
-                                "Deleting existing FILE entity %s before promotion",
-                                file_id,
-                            )
-                            encoded_id = quote(file_id, safe="")
-                            await client.delete(
-                                f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
-                                headers=headers,
-                            )
-                    # 2. Promote the raw file
-                    promote_payload = {
-                        "entityType": "dataset",
-                        "type": "PHYSICAL_DATASET",
-                        "path": [nas_source_name, dataset_id, filename],
-                        "format": {
-                            "type": "Text",
-                            "fieldDelimiter": ",",
-                            "lineDelimiter": "\n",
-                            "quote": '"',
-                            "escape": '"',
-                            "comment": "#",
-                            "extractHeader": True,
-                            "skipFirstLine": False,
-                            "autoGenerateColumnNames": False,
-                        },
-                    }
-
-                    r3 = await client.post(
-                        f"{DREMIO_BASE_URL}/api/v3/catalog",
-                        headers=headers,
-                        json=promote_payload,
-                    )
-
-                    if r3.status_code not in (200, 201):
+                    if not file_id or not file_path:
                         logger.error(
-                            "Failed promoting file %s for dataset_id=%s: %s %s",
+                            "Missing id or path for file %s in dataset_id=%s",
                             filename,
                             dataset_id,
-                            r3.status_code,
-                            r3.text[:500],
                         )
                         return False
 
-                logger.info(
-                    "All CSV files promoted successfully for dataset_id=%s", dataset_id
-                )
-                return True
-
-            # --- CASE 3: Folder does not exist (404) ---
-            if r.status_code == 404:
-                logger.info(
-                    "Folder not found in catalog; promoting each CSV file individually..."
-                )
-
-                # We must list files directly from the filesystem path
-                # because Dremio does not know the folder yet.
-                folder_listing_url = (
-                    f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}"
-                )
-                root_listing = await client.get(folder_listing_url, headers=headers)
-
-                if root_listing.status_code != 200:
-                    logger.error("Cannot list NAS source root to find dataset folder")
-                    return False
-
-                # Find the dataset folder entry
-                root_children = root_listing.json().get("children", [])
-                folder_entry = next(
-                    (c for c in root_children if c["path"][-1] == dataset_id), None
-                )
-
-                if not folder_entry:
-                    logger.error(
-                        "Dataset folder %s not found in NAS source", dataset_id
-                    )
-                    return False
-
-                # Now list the files inside the folder
-                folder_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
-                folder_info = await client.get(folder_url, headers=headers)
-
-                if folder_info.status_code != 200:
-                    logger.error(
-                        "Cannot list files inside dataset folder %s", dataset_id
-                    )
-                    return False
-
-                children = folder_info.json().get("children", [])
-                csv_files = [
-                    child["path"][-1]
-                    for child in children
-                    if child.get("type") == "FILE"
-                    and child["path"][-1].lower().endswith(".csv")
-                ]
-
-                if not csv_files:
-                    logger.error("No CSV files found in dataset folder %s", dataset_id)
-                    return False
-
-                # Promote each CSV file
-                for filename in csv_files:
                     logger.info(
                         "Promoting file %s for dataset_id=%s", filename, dataset_id
                     )
 
+                    # Promote the existing FILE entity into a PHYSICAL_DATASET
+                    encoded_id = quote(file_id, safe="")
                     promote_payload = {
                         "entityType": "dataset",
                         "type": "PHYSICAL_DATASET",
-                        "path": [nas_source_name, dataset_id, filename],
+                        "id": file_id,
+                        "path": file_path,
                         "format": {
                             "type": "Text",
                             "fieldDelimiter": ",",
@@ -460,7 +368,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     }
 
                     r3 = await client.post(
-                        f"{DREMIO_BASE_URL}/api/v3/catalog",
+                        f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
                         headers=headers,
                         json=promote_payload,
                     )
@@ -482,8 +390,9 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
             # --- Unexpected state ---
             logger.error(
-                "Unexpected Dremio response for dataset_id=%s: %s %s",
+                "Unexpected Dremio entityType for dataset_id=%s: %s (status=%s, body=%s)",
                 dataset_id,
+                entity_type,
                 r.status_code,
                 r.text[:500],
             )
