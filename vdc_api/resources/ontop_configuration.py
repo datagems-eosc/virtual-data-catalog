@@ -297,25 +297,32 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
             r = await client.get(by_path_url, headers=headers)
 
             if r.status_code == 200:
-                entity_id = r.json().get("id")
-                logger.info(
-                    "Dataset already promoted in Dremio (id=%s), refreshing...",
-                    entity_id,
-                )
-                encoded_id = quote(entity_id, safe="")
-                r2 = await client.post(
-                    f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}/refresh",
-                    headers=headers,
-                )
-                if r2.status_code not in (200, 201):
-                    logger.error(
-                        "Dremio metadata refresh failed for dataset_id=%s, status=%s, body=%s",
-                        dataset_id,
-                        r2.status_code,
-                        r2.text[:500],
+                entity = r.json()
+                entity_id = entity.get("id")
+                entity_type = entity.get("entityType")
+
+                if entity_type == "dataset":
+                    # Already a PHYSICAL_DATASET — just refresh it
+                    logger.info(
+                        "Dataset already promoted in Dremio (id=%s), refreshing...",
+                        entity_id,
                     )
-                    return False
-                return True
+                    encoded_id = quote(entity_id, safe="")
+                    r2 = await client.post(
+                        f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}/refresh",
+                        headers=headers,
+                    )
+                    if r2.status_code not in (200, 201):
+                        logger.error(
+                            "Dremio metadata refresh failed for dataset_id=%s, status=%s, body=%s",
+                            dataset_id,
+                            r2.status_code,
+                            r2.text[:500],
+                        )
+                        return False
+                    return True
+
+                # entityType == "container" — folder exists but not promoted yet; fall through to promote
 
             # 404 — promote the folder as a physical CSV dataset
             logger.info(
