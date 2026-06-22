@@ -148,8 +148,10 @@ def create_nas_csv_source(token):
         if r.status_code == 200:
             log(f"NAS source '{nas_source_name}' already exists in Dremio, skipping.")
             return
-    except Exception:
-        pass
+    except Exception as e:
+        log(
+            f"Exception occurred while checking for existing NAS source '{nas_source_name}': {e}"
+        )
 
     payload = {
         "entityType": "source",
