@@ -292,7 +292,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     "lineDelimiter": "\n",
                     "quote": '"',
                     "comment": "#",
-                    "header": True,
+                    "extractHeader": True,
                     "trim": False,
                 },
             }
