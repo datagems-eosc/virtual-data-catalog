@@ -129,6 +129,55 @@ def delete_source_if_exists(token, name):
         pass
 
 
+def create_nas_csv_source(token):
+    """Create a NAS source named 'datasets' in Dremio.
+
+    The source points to DREMIO_S3_MOUNT_PATH (default /var/data/s3/dataset),
+    which is the S3 PVC mounted read-only inside the Dremio container.
+    The folder structure is: /var/data/s3/dataset/<dataset_uuid>/*.csv
+    """
+    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "datasets")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/var/data/s3/dataset")
+
+    try:
+        r = requests.get(
+            f"{BASE_URL}/api/v3/catalog/by-path/{nas_source_name}",
+            headers=auth_headers(token),
+            timeout=10,
+        )
+        if r.status_code == 200:
+            log(f"NAS source '{nas_source_name}' already exists in Dremio, skipping.")
+            return
+    except Exception:
+        pass
+
+    payload = {
+        "entityType": "source",
+        "name": nas_source_name,
+        "type": "NAS",
+        "config": {
+            "path": nas_path,
+        },
+    }
+    try:
+        r = requests.post(
+            f"{BASE_URL}/api/v3/catalog",
+            headers=auth_headers(token),
+            json=payload,
+            timeout=30,
+        )
+        if r.status_code in (200, 201):
+            log(f"NAS source '{nas_source_name}' created (path={nas_path}).")
+        elif r.status_code == 409:
+            log(f"NAS source '{nas_source_name}' already exists (409), skipping.")
+        else:
+            log(
+                f"WARNING: Failed to create NAS source '{nas_source_name}': {r.status_code} - {r.text[:200]}"
+            )
+    except Exception as e:
+        log(f"WARNING: Exception while creating NAS source '{nas_source_name}': {e}")
+
+
 def main():
     log("=" * 40)
     log("  Dremio Setup Starting")
@@ -136,8 +185,8 @@ def main():
 
     wait_for_dremio()
 
-    # Validate credentials early so the API does not fail later with 403.
-    get_token()
+    token = get_token()
+    create_nas_csv_source(token)
 
     log("=" * 40)
     log("  Setup Complete!")

@@ -1,5 +1,4 @@
 import os
-import shutil
 import logging
 from pathlib import Path
 
@@ -234,19 +233,23 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
 
 
 async def create_csv_source(token: str, dataset_id: str) -> bool:
-    """Register a CSV folder in the Dremio 'csv' NAS source as a physical dataset.
+    """Register a CSV dataset in Dremio via the S3 NAS source.
 
-    Dremio's catalog REST API rules:
-    - Refresh uses the entity ID, not the path:
-        POST /api/v3/catalog/{id}/refresh
-    - POST /api/v3/catalog/by-path/.../refresh does NOT exist (→ 405).
-    - A folder that has never been promoted returns 404 on GET; it must be
-      promoted via POST /api/v3/catalog before it can be refreshed.
+    Dremio mounts the same S3 PVC at /var/data/s3 (configurable via
+    DREMIO_S3_MOUNT_PATH). The NAS source 'datasets' exposes that path.
+    The API does not need to copy any files — Dremio reads directly from the PVC.
+
+    If the dataset folder is already promoted, refreshes its metadata.
+    If not yet promoted, promotes it as a PHYSICAL_DATASET.
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
-    transfer_csv_to_dremio(dataset_id)
 
-    by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/csv/{dataset_id}"
+    # Name of the Dremio NAS source created by dremio_setup.py
+    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "datasets")
+
+    by_path_url = (
+        f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
+    )
     headers = {
         "Authorization": f"_dremio{token}",
         "Content-Type": "application/json",
@@ -257,10 +260,9 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
             r = await client.get(by_path_url, headers=headers)
 
             if r.status_code == 200:
-                # Dataset already promoted – refresh its metadata using the entity ID.
                 entity_id = r.json().get("id")
                 logger.info(
-                    "Dataset already promoted in Dremio (id=%s), refreshing metadata...",
+                    "Dataset already promoted in Dremio (id=%s), refreshing...",
                     entity_id,
                 )
                 r2 = await client.post(
@@ -277,7 +279,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     return False
                 return True
 
-            # 404 → folder not promoted yet; promote it as a CSV physical dataset.
+            # 404 — promote the folder as a physical CSV dataset
             logger.info(
                 "Promoting CSV folder in Dremio NAS source for dataset_id=%s",
                 dataset_id,
@@ -285,7 +287,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
             promote_payload = {
                 "entityType": "dataset",
                 "type": "PHYSICAL_DATASET",
-                "path": ["csv", dataset_id],
+                "path": [nas_source_name, dataset_id],
                 "format": {
                     "type": "Text",
                     "fieldDelimiter": ",",
@@ -293,7 +295,8 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     "quote": '"',
                     "comment": "#",
                     "extractHeader": True,
-                    "trim": False,
+                    "skipFirstLine": False,
+                    "autoGenerateColumnNames": False,
                 },
             }
             r3 = await client.post(
@@ -316,21 +319,6 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     except httpx.RequestError:
         logger.exception("Dremio catalog request failed for dataset_id=%s", dataset_id)
         return False
-
-
-def transfer_csv_to_dremio(dataset_id: str):
-    """
-    Copy CSV files from /s3/dataset/<dataset_id>/ into
-    Dremio's NAS source folder /opt/dremio/data/csv/<dataset_id>/
-    """
-    source = f"/s3/dataset/{dataset_id}"
-    target = f"/opt/dremio/data/csv/{dataset_id}"
-
-    os.makedirs(target, exist_ok=True)
-
-    for filename in os.listdir(source):
-        if filename.endswith(".csv"):
-            shutil.copy(os.path.join(source, filename), os.path.join(target, filename))
 
 
 async def get_dremio_token() -> str:
