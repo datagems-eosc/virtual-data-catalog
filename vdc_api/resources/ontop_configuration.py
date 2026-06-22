@@ -312,6 +312,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     "path": [nas_source_name, dataset_id],
                     "format": {
                         "type": "Text",
+                        "extensions": ["csv"],
                         "fieldDelimiter": ",",
                         "lineDelimiter": "\n",
                         "quote": '"',
@@ -337,6 +338,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     "path": [nas_source_name, dataset_id],
                     "format": {
                         "type": "Text",
+                        "extensions": ["csv"],
                         "fieldDelimiter": ",",
                         "lineDelimiter": "\n",
                         "quote": '"',
