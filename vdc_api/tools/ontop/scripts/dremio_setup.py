@@ -137,7 +137,7 @@ def create_nas_csv_source(token):
     The folder structure is: /var/data/s3/dataset/<dataset_uuid>/*.csv
     """
     nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "datasets")
-    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/var/data/s3/dataset")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3/dataset")
 
     try:
         r = requests.get(

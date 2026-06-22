@@ -1,6 +1,7 @@
 import os
 import logging
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
@@ -244,7 +245,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
     nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "datasets")
-    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/var/data/s3/dataset")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3/dataset")
 
     headers = {
         "Authorization": f"_dremio{token}",
@@ -301,8 +302,9 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     "Dataset already promoted in Dremio (id=%s), refreshing...",
                     entity_id,
                 )
+                encoded_id = quote(entity_id, safe="")
                 r2 = await client.post(
-                    f"{DREMIO_BASE_URL}/api/v3/catalog/{entity_id}/refresh",
+                    f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}/refresh",
                     headers=headers,
                 )
                 if r2.status_code not in (200, 201):
