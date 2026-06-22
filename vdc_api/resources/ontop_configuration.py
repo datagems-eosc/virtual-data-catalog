@@ -1,5 +1,6 @@
-import logging
 import os
+import shutil
+import logging
 from pathlib import Path
 
 import httpx
@@ -52,7 +53,11 @@ class SparqlRequest(BaseModel):
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
-async def add_dataset(dataset_id: str, token: str = Depends(security.oauth2_scheme)):
+async def add_dataset(
+    dataset_id: str,
+    token: str = Depends(security.oauth2_scheme),
+    #    token_payload: dict[str, Any] = Depends(security.require_app_scope)
+):
     """
     Add a new dataset to Dremio.
     The dataset will be created in Dremio based on the information retrieved from the DMM API for the given dataset_id.
@@ -233,48 +238,44 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     The connection details are retrieved from environment variables.
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
-    source_name = "ds_" + dataset_id
+    transfer_csv_to_dremio(dataset_id)
 
-    s3_payload = {
-        "entityType": "source",
-        "name": source_name,
-        "type": "NAS",
-        "config": {
-            "path": f"/s3/dataset/{dataset_id}/",
-        },
-    }
+    dremio_path = ["csv", dataset_id]
 
-    logger.info(
-        "Creating S3 CSV source in Dremio: source_name=%s bucket=%s endpoint=%s region=%s credential_type=%s",
-        source_name,
-    )
-
-    url = f"{DREMIO_BASE_URL}/api/v3/catalog"
+    url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/" + "/".join(dremio_path)
     headers = {
         "Authorization": f"_dremio{token}",
         "Content-Type": "application/json",
-        "Accept": "application/json",
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
-            response = await client.post(url, headers=headers, json=s3_payload)
-    except httpx.RequestError:
-        logger.exception(
-            "Dremio S3 source request failed for dataset_id=%s", dataset_id
-        )
-        return False
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
+        # Check if dataset exists
+        r = await client.get(url, headers=headers)
+        if r.status_code == 200:
+            logger.info("Dataset already exists, refreshing...")
+        else:
+            logger.info("Dataset does not exist yet, creating folder entry...")
 
-    if response.status_code in (200, 201, 409):
-        return True
+        # 2. Refresh the folder so Dremio picks up the CSV files
+        refresh_url = url + "/refresh"
+        r2 = await client.post(refresh_url, headers=headers)
 
-    logger.error(
-        "Dremio S3 source creation failed for dataset_id=%s, status=%s, body=%s",
-        dataset_id,
-        response.status_code,
-        response.text[:500],
-    )
-    return False
+    return r2.status_code in (200, 201)
+
+
+def transfer_csv_to_dremio(dataset_id: str):
+    """
+    Copy CSV files from /s3/dataset/<dataset_id>/ into
+    Dremio's NAS source folder /opt/dremio/data/csv/<dataset_id>/
+    """
+    source = f"/s3/dataset/{dataset_id}"
+    target = f"/opt/dremio/data/csv/{dataset_id}"
+
+    os.makedirs(target, exist_ok=True)
+
+    for filename in os.listdir(source):
+        if filename.endswith(".csv"):
+            shutil.copy(os.path.join(source, filename), os.path.join(target, filename))
 
 
 async def get_dremio_token() -> str:
