@@ -284,7 +284,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
             )
             promote_payload = {
                 "entityType": "dataset",
-                "type": "PHYSICAL",
+                "type": "PHYSICAL_DATASET",
                 "path": ["csv", dataset_id],
                 "format": {
                     "type": "Text",
