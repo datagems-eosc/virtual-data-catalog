@@ -244,8 +244,8 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
-    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "csvroot")
-    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3/dataset")
+    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "csvroot/dataset")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3")
 
     headers = {
         "Authorization": f"_dremio{token}",
