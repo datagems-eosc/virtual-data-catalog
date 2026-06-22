@@ -326,7 +326,27 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     logger.info(
                         "Promoting file %s for dataset_id=%s", filename, dataset_id
                     )
+                    # 1. Check if the file already exists as a FILE entity
+                    file_path = [nas_source_name, dataset_id, filename]
+                    file_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/" + "/".join(
+                        file_path
+                    )
 
+                    file_entity = await client.get(file_url, headers=headers)
+
+                    if file_entity.status_code == 200:
+                        file_id = file_entity.json().get("id")
+                        if file_id:
+                            logger.info(
+                                "Deleting existing FILE entity %s before promotion",
+                                file_id,
+                            )
+                            encoded_id = quote(file_id, safe="")
+                            await client.delete(
+                                f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
+                                headers=headers,
+                            )
+                    # 2. Promote the raw file
                     promote_payload = {
                         "entityType": "dataset",
                         "type": "PHYSICAL_DATASET",
