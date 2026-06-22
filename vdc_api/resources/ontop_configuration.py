@@ -235,21 +235,17 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
 async def create_csv_source(token: str, dataset_id: str) -> bool:
     """Register a CSV dataset in Dremio via the S3 NAS source.
 
-    Dremio mounts the same S3 PVC at /var/data/s3 (configurable via
-    DREMIO_S3_MOUNT_PATH). The NAS source 'datasets' exposes that path.
+    Dremio mounts the same S3 PVC at DREMIO_S3_MOUNT_PATH (default /var/data/s3/dataset).
+    The NAS source DREMIO_NAS_SOURCE_NAME (default 'datasets') exposes that path.
     The API does not need to copy any files — Dremio reads directly from the PVC.
 
-    If the dataset folder is already promoted, refreshes its metadata.
-    If not yet promoted, promotes it as a PHYSICAL_DATASET.
+    Ensures the NAS source exists before attempting to promote the dataset folder.
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
-    # Name of the Dremio NAS source created by dremio_setup.py
     nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "datasets")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/var/data/s3/dataset")
 
-    by_path_url = (
-        f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
-    )
     headers = {
         "Authorization": f"_dremio{token}",
         "Content-Type": "application/json",
@@ -257,6 +253,46 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
+            # --- Ensure NAS source exists ---
+            source_check = await client.get(
+                f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}",
+                headers=headers,
+            )
+            if source_check.status_code == 404:
+                logger.info(
+                    "NAS source '%s' not found, creating it (path=%s)...",
+                    nas_source_name,
+                    nas_path,
+                )
+                r_src = await client.post(
+                    f"{DREMIO_BASE_URL}/api/v3/catalog",
+                    headers=headers,
+                    json={
+                        "entityType": "source",
+                        "name": nas_source_name,
+                        "type": "NAS",
+                        "config": {"path": nas_path},
+                    },
+                )
+                if r_src.status_code not in (200, 201, 409):
+                    logger.error(
+                        "Failed to create NAS source '%s', status=%s, body=%s",
+                        nas_source_name,
+                        r_src.status_code,
+                        r_src.text[:500],
+                    )
+                    return False
+                logger.info("NAS source '%s' created.", nas_source_name)
+            elif source_check.status_code not in (200, 409):
+                logger.error(
+                    "Unexpected status checking NAS source '%s': %s",
+                    nas_source_name,
+                    source_check.status_code,
+                )
+                return False
+
+            # --- Promote or refresh the dataset folder ---
+            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
             r = await client.get(by_path_url, headers=headers)
 
             if r.status_code == 200:
