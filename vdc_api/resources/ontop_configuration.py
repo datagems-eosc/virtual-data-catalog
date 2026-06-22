@@ -234,14 +234,6 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
 
 
 async def create_csv_source(token: str, dataset_id: str) -> bool:
-    """Register a CSV dataset in Dremio via the S3 NAS source.
-
-    Dremio mounts the same S3 PVC at DREMIO_S3_MOUNT_PATH (default /var/data/s3/dataset).
-    The NAS source DREMIO_NAS_SOURCE_NAME (default 'datasets') exposes that path.
-    The API does not need to copy any files — Dremio reads directly from the PVC.
-
-    Ensures the NAS source exists before attempting to promote the dataset folder.
-    """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
     nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "csvroot")
@@ -259,11 +251,10 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}",
                 headers=headers,
             )
+
             if source_check.status_code == 404:
                 logger.info(
-                    "NAS source '%s' not found, creating it (path=%s)...",
-                    nas_source_name,
-                    nas_path,
+                    "NAS source '%s' not found, creating it...", nas_source_name
                 )
                 r_src = await client.post(
                     f"{DREMIO_BASE_URL}/api/v3/catalog",
@@ -277,13 +268,13 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 )
                 if r_src.status_code not in (200, 201, 409):
                     logger.error(
-                        "Failed to create NAS source '%s', status=%s, body=%s",
+                        "Failed to create NAS source '%s': %s %s",
                         nas_source_name,
                         r_src.status_code,
                         r_src.text[:500],
                     )
                     return False
-                logger.info("NAS source '%s' created.", nas_source_name)
+
             elif source_check.status_code not in (200, 409):
                 logger.error(
                     "Unexpected status checking NAS source '%s': %s",
@@ -292,75 +283,84 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 )
                 return False
 
-            # --- Promote or refresh the dataset folder ---
+            # --- Check dataset folder ---
             by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
-
             r = await client.get(by_path_url, headers=headers)
 
-            if r.status_code == 200:
-                entity = r.json()
-                entity_id = entity.get("id")
-                entity_type = entity.get("entityType")
-
-                if entity_type == "dataset":
-                    # Already a PHYSICAL_DATASET — just refresh it
-                    logger.info(
-                        "Dataset already promoted in Dremio (id=%s), refreshing...",
-                        entity_id,
-                    )
-                    encoded_id = quote(entity_id, safe="")
-                    r2 = await client.post(
-                        f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}/refresh",
-                        headers=headers,
-                    )
-                    if r2.status_code not in (200, 201):
-                        logger.error(
-                            "Dremio metadata refresh failed for dataset_id=%s, status=%s, body=%s",
-                            dataset_id,
-                            r2.status_code,
-                            r2.text[:500],
-                        )
-                        return False
-                    return True
-
-                # entityType == "container" — folder exists but not promoted yet; fall through to promote
-
-            # 404 — promote the folder as a physical CSV dataset
-            logger.info(
-                "Promoting CSV folder in Dremio NAS source for dataset_id=%s",
-                dataset_id,
-            )
-            promote_payload = {
-                "entityType": "dataset",
-                "type": "PHYSICAL_DATASET",
-                "path": [nas_source_name, dataset_id],
-                "format": {
-                    "type": "Text",
-                    "fieldDelimiter": ",",
-                    "lineDelimiter": "\n",
-                    "quote": '"',
-                    "comment": "#",
-                    "extractHeader": True,
-                    "skipFirstLine": False,
-                    "autoGenerateColumnNames": False,
-                },
-            }
-            r3 = await client.post(
-                f"{DREMIO_BASE_URL}/api/v3/catalog",
-                headers=headers,
-                json=promote_payload,
-            )
-            if r3.status_code not in (200, 201):
-                logger.error(
-                    "Dremio dataset promotion failed for dataset_id=%s, status=%s, body=%s",
-                    dataset_id,
-                    r3.status_code,
-                    r3.text[:500],
+            # --- CASE 1: Already promoted dataset ---
+            if r.status_code == 200 and r.json().get("entityType") == "dataset":
+                entity_id = r.json().get("id")
+                logger.info(
+                    "Dataset already promoted (id=%s), refreshing...", entity_id
                 )
-                return False
+                encoded_id = quote(entity_id, safe="")
+                r2 = await client.post(
+                    f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}/refresh",
+                    headers=headers,
+                )
+                return r2.status_code in (200, 201)
 
-            logger.info("CSV dataset promoted in Dremio for dataset_id=%s", dataset_id)
-            return True
+            # --- CASE 2: Folder exists but not promoted ---
+            if r.status_code == 200 and r.json().get("entityType") in (
+                "folder",
+                "container",
+            ):
+                logger.info("Folder exists but not promoted, promoting now...")
+                promote_payload = {
+                    "entityType": "dataset",
+                    "type": "PHYSICAL_DATASET",
+                    "path": [nas_source_name, dataset_id],
+                    "format": {
+                        "type": "Text",
+                        "fieldDelimiter": ",",
+                        "lineDelimiter": "\n",
+                        "quote": '"',
+                        "comment": "#",
+                        "extractHeader": True,
+                        "skipFirstLine": False,
+                        "autoGenerateColumnNames": False,
+                    },
+                }
+                r3 = await client.post(
+                    f"{DREMIO_BASE_URL}/api/v3/catalog",
+                    headers=headers,
+                    json=promote_payload,
+                )
+                return r3.status_code in (200, 201)
+
+            # --- CASE 3: Folder does not exist (404) ---
+            if r.status_code == 404:
+                logger.info("Folder not found, promoting fresh dataset...")
+                promote_payload = {
+                    "entityType": "dataset",
+                    "type": "PHYSICAL_DATASET",
+                    "path": [nas_source_name, dataset_id],
+                    "format": {
+                        "type": "Text",
+                        "fieldDelimiter": ",",
+                        "lineDelimiter": "\n",
+                        "quote": '"',
+                        "comment": "#",
+                        "extractHeader": True,
+                        "skipFirstLine": False,
+                        "autoGenerateColumnNames": False,
+                    },
+                }
+                r3 = await client.post(
+                    f"{DREMIO_BASE_URL}/api/v3/catalog",
+                    headers=headers,
+                    json=promote_payload,
+                )
+                return r3.status_code in (200, 201)
+
+            # --- Unexpected state ---
+            logger.error(
+                "Unexpected Dremio response for dataset_id=%s: %s %s",
+                dataset_id,
+                r.status_code,
+                r.text[:500],
+            )
+            return False
 
     except httpx.RequestError:
         logger.exception("Dremio catalog request failed for dataset_id=%s", dataset_id)
