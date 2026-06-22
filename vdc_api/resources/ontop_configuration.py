@@ -234,33 +234,88 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
 
 
 async def create_csv_source(token: str, dataset_id: str) -> bool:
-    """Create a CSV source in Dremio with the given dataset ID. (in progress, not tested yet)
-    The connection details are retrieved from environment variables.
+    """Register a CSV folder in the Dremio 'csv' NAS source as a physical dataset.
+
+    Dremio's catalog REST API rules:
+    - Refresh uses the entity ID, not the path:
+        POST /api/v3/catalog/{id}/refresh
+    - POST /api/v3/catalog/by-path/.../refresh does NOT exist (→ 405).
+    - A folder that has never been promoted returns 404 on GET; it must be
+      promoted via POST /api/v3/catalog before it can be refreshed.
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
     transfer_csv_to_dremio(dataset_id)
 
-    dremio_path = ["csv", dataset_id]
-
-    url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/" + "/".join(dremio_path)
+    by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/csv/{dataset_id}"
     headers = {
         "Authorization": f"_dremio{token}",
         "Content-Type": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
-        # Check if dataset exists
-        r = await client.get(url, headers=headers)
-        if r.status_code == 200:
-            logger.info("Dataset already exists, refreshing...")
-        else:
-            logger.info("Dataset does not exist yet, creating folder entry...")
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
+            r = await client.get(by_path_url, headers=headers)
 
-        # 2. Refresh the folder so Dremio picks up the CSV files
-        refresh_url = url + "/refresh"
-        r2 = await client.post(refresh_url, headers=headers)
+            if r.status_code == 200:
+                # Dataset already promoted – refresh its metadata using the entity ID.
+                entity_id = r.json().get("id")
+                logger.info(
+                    "Dataset already promoted in Dremio (id=%s), refreshing metadata...",
+                    entity_id,
+                )
+                r2 = await client.post(
+                    f"{DREMIO_BASE_URL}/api/v3/catalog/{entity_id}/refresh",
+                    headers=headers,
+                )
+                if r2.status_code not in (200, 201):
+                    logger.error(
+                        "Dremio metadata refresh failed for dataset_id=%s, status=%s, body=%s",
+                        dataset_id,
+                        r2.status_code,
+                        r2.text[:500],
+                    )
+                    return False
+                return True
 
-    return r2.status_code in (200, 201)
+            # 404 → folder not promoted yet; promote it as a CSV physical dataset.
+            logger.info(
+                "Promoting CSV folder in Dremio NAS source for dataset_id=%s",
+                dataset_id,
+            )
+            promote_payload = {
+                "entityType": "dataset",
+                "type": "PHYSICAL",
+                "path": ["csv", dataset_id],
+                "format": {
+                    "type": "Text",
+                    "fieldDelimiter": ",",
+                    "lineDelimiter": "\n",
+                    "quote": '"',
+                    "comment": "#",
+                    "header": True,
+                    "trim": False,
+                },
+            }
+            r3 = await client.post(
+                f"{DREMIO_BASE_URL}/api/v3/catalog",
+                headers=headers,
+                json=promote_payload,
+            )
+            if r3.status_code not in (200, 201):
+                logger.error(
+                    "Dremio dataset promotion failed for dataset_id=%s, status=%s, body=%s",
+                    dataset_id,
+                    r3.status_code,
+                    r3.text[:500],
+                )
+                return False
+
+            logger.info("CSV dataset promoted in Dremio for dataset_id=%s", dataset_id)
+            return True
+
+    except httpx.RequestError:
+        logger.exception("Dremio catalog request failed for dataset_id=%s", dataset_id)
+        return False
 
 
 def transfer_csv_to_dremio(dataset_id: str):
