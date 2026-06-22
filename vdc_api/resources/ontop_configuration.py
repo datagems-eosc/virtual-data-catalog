@@ -244,8 +244,8 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
     """
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
-    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "csvroot/dataset")
-    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3")
+    nas_source_name = os.getenv("DREMIO_NAS_SOURCE_NAME", "csvroot")
+    nas_path = os.getenv("DREMIO_S3_MOUNT_PATH", "/s3/dataset")
 
     headers = {
         "Authorization": f"_dremio{token}",
@@ -293,7 +293,8 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Promote or refresh the dataset folder ---
-            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/dataset/{dataset_id}"
+            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
+
             r = await client.get(by_path_url, headers=headers)
 
             if r.status_code == 200:
@@ -332,7 +333,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
             promote_payload = {
                 "entityType": "dataset",
                 "type": "PHYSICAL_DATASET",
-                "path": [nas_source_name, "dataset", dataset_id],
+                "path": [nas_source_name, dataset_id],
                 "format": {
                     "type": "Text",
                     "fieldDelimiter": ",",
