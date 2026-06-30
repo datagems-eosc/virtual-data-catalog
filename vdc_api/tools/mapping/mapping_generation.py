@@ -173,14 +173,11 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         table_name = details.get("recordset_name", table)
         field_specs = []
         projection_sql = []
-        id = False
         for field in details["columns"]:
             field_name = details.get("column_names", {}).get(field, field)
             field_info = details.get("field_metadata", {}).get(field, {})
             source_column = field_info.get("source_column") or field_name
             strategy = _infer_field_strategy(field_name, field_info)
-            if source_column == "id":
-                id = True
 
             field_specs.append(
                 {
@@ -193,33 +190,34 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
             projection_sql.append(
                 _build_projection_sql(source_column, field_name, strategy["mode"])
             )
-        triples_map = URIRef(f"#TripleMapping{index}")
+        triples_map = URIRef(f"#TripleMapping_{source_id}_{index}")
         mappings.add((triples_map, RDF.type, RR.TriplesMap))
         logical_table = BNode()
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
-        if id:
-            sql_query = (
-                f"SELECT {', '.join(projection_sql)}"
-                f"FROM {_quote_identifier('ds_' + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
-            )
-        else:
-            sql_query = (
-                f"SELECT {', '.join(projection_sql)}, ROW_NUMBER() OVER () AS id "
-                f"FROM {_quote_identifier("ds_" + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
-            )
+        sql_query = (
+            f"SELECT {', '.join(projection_sql)}"
+            f"FROM {_quote_identifier('ds_' + source_id)}.{schema_name}.{_quote_identifier(table_name)}"
+        )
         mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
 
         subject_map = BNode()
         mappings.add((triples_map, RR.subjectMap, subject_map))
         mappings.add((subject_map, RDF.type, RR.SubjectMap))
-        mappings.add(
-            (
-                subject_map,
-                RR.template,
-                Literal(f"http://example.com/{dataset_id}/{table_name}/{{id}}"),
+        if details.get("primary_key") != []:
+            pk_template = "_".join(details.get("primary_key"))
+            mappings.add(
+                (
+                    subject_map,
+                    RR.template,
+                    Literal(
+                        f"http://example.com/{dataset_id}/{table_name}/{{{pk_template}}}"
+                    ),
+                )
             )
-        )
+        else:
+            mappings.add(subject_map, RR.subjectMap, BNode())
+            mappings.add(subject_map, RR.constant, "row")
 
         for field_spec in field_specs:
             field_name = field_spec["field_name"]
@@ -391,6 +389,40 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
 
 
 def extract_schema(croissant_data):
+    """
+    Extracts a relational-style schema from a Croissant JSON-LD graph.
+    Returns:
+        dict: A dictionary of the form:
+
+        {
+            "<table_uuid>": {
+                "recordset_name": str,
+                "columns": [str, ...],
+                "primary_key": [str, ...],
+                "foreign_keys": [
+                    {
+                        "column": str,
+                        "column_name": str,
+                        "references": (str, str),
+                        "references_name": (str, str),
+                    },
+                    ...
+                ],
+                "column_names": { str: str, ... },
+                "primary_key_names": { str: str, ... },
+                "field_metadata": {
+                    str: {
+                        "source_column": str,
+                        "data_type": str or None,
+                        "samples": [str, ...],
+                    },
+                    ...
+                },
+            },
+            ...
+        }
+    """
+
     def uuid_tail(term):
         value = str(term)
         if not value:
