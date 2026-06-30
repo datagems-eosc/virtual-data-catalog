@@ -216,7 +216,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
                 )
             )
         else:
-            mappings.add(subject_map, RR.subjectMap, BNode())
+            mappings.add(subject_map, RR.subjectMap, RR.BlankNode)
             mappings.add(subject_map, RR.constant, "row")
 
         for field_spec in field_specs:
