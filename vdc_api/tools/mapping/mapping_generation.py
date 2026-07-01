@@ -185,7 +185,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         if mimeType == "text/csv":
             sql_query = f"""
             SELECT {", ".join(projection_sql)}
-            FROM "csvroot"."{source_id.replace('-', '_')}"."{table_name}.csv"
+            FROM "csvroot"."{source_id.replace('-', '_')}"."{table_name}"
             """
 
         elif mimeType == "text/sql":
