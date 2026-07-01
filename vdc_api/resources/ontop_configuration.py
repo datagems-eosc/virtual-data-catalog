@@ -298,7 +298,6 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            dremio_dataset_folder = get_dremio_dataset_name(dataset_id)
             normalized_dataset_id = dataset_id.replace("-", "_")
             folder_candidates = []
             for folder_name in (
@@ -414,17 +413,12 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
                     # Promote the existing FILE entity into a PHYSICAL_DATASET
                     encoded_id = quote(file_id, safe="")
-                    preferred_dataset_path = [
-                        nas_source_name,
-                        dremio_dataset_folder,
-                        dataset_name,
-                    ]
                     promote_payload = {
                         "entityType": "dataset",
                         "type": "PHYSICAL_DATASET",
                         "id": file_id,
                         "name": dataset_name,
-                        "path": preferred_dataset_path,
+                        "path": file_path,
                         "format": {
                             "type": "Text",
                             "fieldDelimiter": ",",
@@ -446,18 +440,15 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
                     if r3.status_code not in (200, 201):
                         logger.warning(
-                            "Failed promoting file %s with extensionless dataset name '%s' for dataset_id=%s: %s. Retrying with extensionless fallback path.",
+                            "Failed promoting file %s with extensionless dataset name '%s' for dataset_id=%s: %s %s. Retrying with original Dremio file name.",
                             filename,
                             dataset_name,
                             dataset_id,
                             r3.status_code,
+                            r3.text[:500],
                         )
-                        fallback_dataset_path = [
-                            nas_source_name,
-                            selected_folder_name,
-                            dataset_name,
-                        ]
-                        promote_payload["path"] = fallback_dataset_path
+                        promote_payload.pop("name", None)
+                        promote_payload["path"] = file_path
                         r3 = await client.post(
                             f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
                             headers=headers,
