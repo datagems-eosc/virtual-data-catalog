@@ -106,7 +106,8 @@ async def add_dataset(
         )
         raise HTTPException(status_code=500, detail="Failed to add dataset to Dremio")
 
-    await add_mappings_to_ontop(dataset_info, source_name)
+    mimeType = get_mimeType_for_dataset(dataset_info)
+    await add_mappings_to_ontop(dataset_info, source_name, mimeType)
     v = "Mappings added to Ontop for dataset_id=%s with source_name=%s" % (
         dataset_id,
         source_name,
@@ -144,12 +145,14 @@ async def add_dataset_to_dremio(
     return MockResponse(status_code=500)
 
 
-async def add_mappings_to_ontop(dataset_info: dict, source_name: str):
+async def add_mappings_to_ontop(dataset_info: dict, source_name: str, mimeType: str):
     """
     Generate mapping file for a given dataset and merge it with existing mappings in Ontop, then restart the Ontop container to apply the changes.
     #TODO: We should find where the mappings should be stored and avoid merging all files on each request. Check about multiple input mappings files with ontop
     """
-    mapping_generation.generate_mappings(dataset_info, source_id=source_name)
+    mapping_generation.generate_mappings(
+        dataset_info, source_id=source_name, mimeType=mimeType
+    )
 
     # mapping_generation.merge_mapping_files()
     # mapping_generation.merge_ontology_files()

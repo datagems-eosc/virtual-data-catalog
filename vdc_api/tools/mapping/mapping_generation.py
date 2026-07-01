@@ -149,11 +149,13 @@ def merge_ontology_files() -> None:
     )
 
 
-def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public"):
+def generate_mappings(
+    croissant_dict, source_id: str, mimeType: str, schema_name: str = "public"
+):
     croissant_dict = add_uri_prefix_to_croissant(croissant_dict)
     logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
-    mappings = generate_mappings_file(croissant_dict, source_id, schema_name)
+    mappings = generate_mappings_file(croissant_dict, source_id, schema_name, mimeType)
     logger.info("Triples: %d", len(mappings))
     upload_mapping_file(
         mappings.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
@@ -163,7 +165,7 @@ def generate_mappings(croissant_dict, source_id: str, schema_name: str = "public
     )
 
 
-def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "public"):
+def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType):
     dataset_id = croissant_dict.get("@id", "unknown_dataset").split(":")[-1]
     mappings = Graph()
     mappings.bind("rr", RR)
@@ -195,10 +197,18 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name: str = "p
         logical_table = BNode()
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
-        sql_query = (
-            f'SELECT {", ".join(projection_sql)} '
-            f'FROM "{ "ds_" + source_id }"."{ schema_name }"."{ table_name }"'
-        )
+        if mimeType == "text/csv":
+            sql_query = (
+                f'SELECT {", ".join(projection_sql)} '
+                f'FROM "{ "ds_" + source_id }"."{ table_name }.csv"'
+            )
+        elif mimeType == "text/sql":
+            sql_query = (
+                f'SELECT {", ".join(projection_sql)} '
+                f'FROM "{ "ds_" + source_id }"."{ schema_name }"."{ table_name }"'
+            )
+        else:
+            raise ValueError(f"Unsupported mimeType: {mimeType}")
 
         mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
 
