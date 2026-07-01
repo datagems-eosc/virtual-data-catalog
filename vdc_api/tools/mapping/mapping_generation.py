@@ -184,7 +184,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         if mimeType == "text/csv":
             sql_query = f"""
-            SELECT {", ".join([f'"{col}" AS "{col}"' for col in projection_sql])}
+            SELECT {", ".join(projection_sql)}
             FROM "csvroot"."{source_id}"."{table_name}.csv"
             """
 
