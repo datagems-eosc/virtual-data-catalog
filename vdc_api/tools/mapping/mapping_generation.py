@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 from pathlib import Path
 import copy
 from urllib.parse import urlparse
@@ -21,6 +22,7 @@ MAPPINGS_DIR = INPUT_DIR / "mappings"
 ONTOLOGIES_DIR = INPUT_DIR / "ontologies"
 MAPPING_FILE = INPUT_DIR / "mapping.ttl"
 ONTOLOGY_FILE = INPUT_DIR / "ontology.ttl"
+DREMIO_DATASET_PREFIX = os.getenv("DREMIO_DATASET_PREFIX", "d_")
 
 
 SCHEMA_TO_XSD = {
@@ -38,6 +40,12 @@ SCHEMA_TO_XSD = {
 def _quote_identifier(identifier: str) -> str:
     escaped = identifier.replace('"', '""')
     return f'"{escaped}"'
+
+
+def _get_dremio_dataset_name(dataset_id: str) -> str:
+    if dataset_id.startswith(DREMIO_DATASET_PREFIX):
+        return dataset_id
+    return f"{DREMIO_DATASET_PREFIX}{dataset_id}"
 
 
 def _normalize_datatype_token(data_type: str | None) -> str | None:
@@ -182,16 +190,17 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         logical_table = BNode()
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
+        dremio_dataset_name = _get_dremio_dataset_name(source_id)
         if mimeType == "text/csv":
             sql_query = f"""
             SELECT {", ".join(projection_sql)}
-            FROM "csvroot"."{source_id.replace('-', '_')}"."{table_name}"
+            FROM "csvroot"."{dremio_dataset_name.replace('-', '_')}"."{table_name}"
             """
 
         elif mimeType == "text/sql":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '
-                f'FROM "{ "ds_" + source_id }"."{ schema_name }"."{ table_name }"'
+                f'FROM "{ dremio_dataset_name }"."{ schema_name }"."{ table_name }"'
             )
         else:
             raise ValueError(f"Unsupported mimeType: {mimeType}")

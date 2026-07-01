@@ -31,6 +31,7 @@ DREMIO_ADMIN_PASSWORD = os.getenv("DREMIO_ADMIN_PASSWORD", "vdc-admin1")
 DREMIO_ADMIN_FIRSTNAME = os.getenv("DREMIO_ADMIN_FIRSTNAME", "Admin")
 DREMIO_ADMIN_LASTNAME = os.getenv("DREMIO_ADMIN_LASTNAME", "User")
 DREMIO_ADMIN_EMAIL = os.getenv("DREMIO_ADMIN_EMAIL", "admin@example.com")
+DREMIO_DATASET_PREFIX = os.getenv("DREMIO_DATASET_PREFIX", "d_")
 
 
 DMM_URL = os.getenv("DMM_URL")
@@ -50,6 +51,12 @@ ONTOP_SPARQL_URL = os.getenv("ONTOP_SPARQL_URL", "http://ontop:8080/sparql")
 
 class SparqlRequest(BaseModel):
     query: str
+
+
+def get_dremio_dataset_name(dataset_id: str) -> str:
+    if dataset_id.startswith(DREMIO_DATASET_PREFIX):
+        return dataset_id
+    return f"{DREMIO_DATASET_PREFIX}{dataset_id}"
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
@@ -92,7 +99,7 @@ async def add_dataset(
             status_code=400,
             detail=f"Dataset status is '{dataset_status}'. The full profile is not uploaded yet, so the dataset cannot be added to Dremio or Ontop. Please wait until the dataset is fully ready.",
         )
-    source_name = dataset_id
+    source_name = get_dremio_dataset_name(dataset_id)
 
     # Add dataset to Dremio
     dremio_response = await add_dataset_to_dremio(
@@ -192,7 +199,7 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
     """
     pg_payload = {
         "entityType": "source",
-        "name": "ds_" + source_name,
+        "name": source_name,
         "type": "POSTGRES",
         "config": {
             "hostname": os.getenv("POSTGRES_HOST"),
@@ -286,10 +293,18 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            normalized_dataset_id = dataset_id.replace("-", "_")
-            folder_candidates = [normalized_dataset_id]
-            if normalized_dataset_id != dataset_id:
-                folder_candidates.append(dataset_id)
+            prefixed_dataset_id = get_dremio_dataset_name(dataset_id)
+            normalized_dataset_id = prefixed_dataset_id.replace("-", "_")
+            legacy_normalized_dataset_id = dataset_id.replace("-", "_")
+            folder_candidates = []
+            for folder_name in (
+                normalized_dataset_id,
+                legacy_normalized_dataset_id,
+                prefixed_dataset_id,
+                dataset_id,
+            ):
+                if folder_name not in folder_candidates:
+                    folder_candidates.append(folder_name)
 
             r = None
             selected_folder_name = None
