@@ -286,7 +286,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id}"
+            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id.replace('-', '_')}"
             r = await client.get(by_path_url, headers=headers)
 
             if r.status_code != 200:
@@ -337,6 +337,14 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     filename = child["path"][-1]
                     file_id = child.get("id")
                     file_path = child.get("path")
+
+                    logger.info(
+                        "Found CSV file %s with id=%s and path=%s for dataset_id=%s",
+                        filename,
+                        file_id,
+                        file_path,
+                        dataset_id,
+                    )
 
                     if not file_id or not file_path:
                         logger.error(
