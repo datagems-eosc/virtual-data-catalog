@@ -373,6 +373,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                     filename = child["path"][-1]
                     file_id = child.get("id")
                     file_path = child.get("path")
+                    dataset_name = Path(filename).stem
 
                     logger.info(
                         "Found CSV file %s with id=%s and path=%s for dataset_id=%s",
@@ -396,11 +397,13 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
                     # Promote the existing FILE entity into a PHYSICAL_DATASET
                     encoded_id = quote(file_id, safe="")
+                    preferred_dataset_path = [*file_path[:-1], dataset_name]
                     promote_payload = {
                         "entityType": "dataset",
                         "type": "PHYSICAL_DATASET",
                         "id": file_id,
-                        "path": file_path,
+                        "name": dataset_name,
+                        "path": preferred_dataset_path,
                         "format": {
                             "type": "Text",
                             "fieldDelimiter": ",",
@@ -419,6 +422,21 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                         headers=headers,
                         json=promote_payload,
                     )
+
+                    if r3.status_code not in (200, 201):
+                        logger.warning(
+                            "Failed promoting file %s with extensionless dataset name '%s' for dataset_id=%s: %s. Retrying with original path.",
+                            filename,
+                            dataset_name,
+                            dataset_id,
+                            r3.status_code,
+                        )
+                        promote_payload["path"] = file_path
+                        r3 = await client.post(
+                            f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
+                            headers=headers,
+                            json=promote_payload,
+                        )
 
                     if r3.status_code not in (200, 201):
                         logger.error(
