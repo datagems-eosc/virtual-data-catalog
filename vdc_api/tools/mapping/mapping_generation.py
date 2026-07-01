@@ -183,17 +183,16 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         mappings.add((triples_map, RR.logicalTable, logical_table))
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         if mimeType == "text/csv":
-            sql_query = (
-                f'SELECT {", ".join(projection_sql)} '
-                f'FROM \\"csvroot\\".\\"{source_id}\\".\\"{table_name}.csv\\"'
-            )
+            sql_query = f"""
+            SELECT {", ".join([f'"{col}" AS "{col}"' for col in projection_sql])}
+            FROM "csvroot"."{source_id}"."{table_name}.csv"
+            """
 
         elif mimeType == "text/sql":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '
-                f'FROM \\"ds_{source_id}\\".\\"{schema_name}\\".\\"{table_name}\\"'
+                f'FROM "{ "ds_" + source_id }"."{ schema_name }"."{ table_name }"'
             )
-
         else:
             raise ValueError(f"Unsupported mimeType: {mimeType}")
 
