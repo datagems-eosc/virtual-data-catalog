@@ -117,15 +117,9 @@ def merge_mapping_files() -> None:
     merged.bind("ex", EX)
     for ttl_file in ttl_files:
         merged.parse(ttl_file, format="turtle")
-        logger.info("Merged mapping file: %s", ttl_file.name)
 
     with open(MAPPING_FILE, "w") as f:
         f.write(merged.serialize(format="turtle"))
-    logger.info(
-        "Wrote merged mapping.ttl (%d triple maps across %d file(s))",
-        len(merged),
-        len(ttl_files),
-    )
 
 
 def merge_ontology_files() -> None:
@@ -138,25 +132,17 @@ def merge_ontology_files() -> None:
     merged = Graph()
     for ttl_file in ttl_files:
         merged.parse(ttl_file, format="turtle")
-        logger.info("Merged ontology file: %s", ttl_file.name)
 
     with open(ONTOLOGY_FILE, "w") as f:
         f.write(merged.serialize(format="turtle"))
-    logger.info(
-        "Wrote merged ontology.ttl (%d triples across %d file(s))",
-        len(merged),
-        len(ttl_files),
-    )
 
 
 def generate_mappings(
     croissant_dict, source_id: str, mimeType: str, schema_name: str = "public"
 ):
     croissant_dict = add_uri_prefix_to_croissant(croissant_dict)
-    logger.info("Generating mappings for Croissant dict: %s", croissant_dict)
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name, mimeType)
-    logger.info("Triples: %d", len(mappings))
     upload_mapping_file(
         mappings.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
     )
@@ -170,7 +156,6 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
     mappings = Graph()
     mappings.bind("rr", RR)
     extracted_schema = extract_schema(croissant_dict)
-    logger.info("Extracted schema: %s", json.dumps(extracted_schema, indent=2))
     for index, (table, details) in enumerate(extracted_schema.items(), start=1):
         table_name = details.get("recordset_name", table)
         field_specs = []
@@ -200,13 +185,15 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         if mimeType == "text/csv":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '
-                f'FROM "csvroot"."{ source_id }"."{ table_name }.csv"'
+                f'FROM \\"csvroot\\".\\"{source_id}\\".\\"{table_name}.csv\\"'
             )
+
         elif mimeType == "text/sql":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '
-                f'FROM "{ "ds_" + source_id }"."{ schema_name }"."{ table_name }"'
+                f'FROM \\"ds_{source_id}\\".\\"{schema_name}\\".\\"{table_name}\\"'
             )
+
         else:
             raise ValueError(f"Unsupported mimeType: {mimeType}")
 
@@ -336,7 +323,6 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                             URIRef("http://www.w3.org/2002/07/owl#DatatypeProperty"),
                         )
                     )
-                    logger.info("Field '%s'", field)
                     query = f"""
                     PREFIX cr: <http://mlcommons.org/croissant/>
                     PREFIX d: <http://datagems-dev.scayle.es/>
