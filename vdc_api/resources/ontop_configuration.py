@@ -115,7 +115,11 @@ async def add_dataset(
         raise HTTPException(status_code=500, detail="Failed to add dataset to Dremio")
 
     mimeType = get_mimeType_for_dataset(dataset_info)
-    await add_mappings_to_ontop(dataset_info, source_name, mimeType)
+    mapping_source_name = source_name
+    if mimeType == "text/csv":
+        mapping_source_name = dataset_id
+
+    await add_mappings_to_ontop(dataset_info, mapping_source_name, mimeType)
     v = "Mappings added to Ontop for dataset_id=%s with source_name=%s" % (
         dataset_id,
         source_name,
