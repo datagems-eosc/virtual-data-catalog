@@ -446,13 +446,18 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
                     if r3.status_code not in (200, 201):
                         logger.warning(
-                            "Failed promoting file %s with extensionless dataset name '%s' for dataset_id=%s: %s. Retrying with original path.",
+                            "Failed promoting file %s with extensionless dataset name '%s' for dataset_id=%s: %s. Retrying with extensionless fallback path.",
                             filename,
                             dataset_name,
                             dataset_id,
                             r3.status_code,
                         )
-                        promote_payload["path"] = file_path
+                        fallback_dataset_path = [
+                            nas_source_name,
+                            selected_folder_name,
+                            dataset_name,
+                        ]
+                        promote_payload["path"] = fallback_dataset_path
                         r3 = await client.post(
                             f"{DREMIO_BASE_URL}/api/v3/catalog/{encoded_id}",
                             headers=headers,
