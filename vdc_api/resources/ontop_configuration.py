@@ -286,17 +286,53 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            by_path_url = f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{nas_source_name}/{dataset_id.replace('-', '_')}"
-            r = await client.get(by_path_url, headers=headers)
+            normalized_dataset_id = dataset_id.replace("-", "_")
+            folder_candidates = [normalized_dataset_id]
+            if normalized_dataset_id != dataset_id:
+                folder_candidates.append(dataset_id)
 
-            if r.status_code != 200:
-                logger.error(
-                    "Dataset folder not found or not accessible for dataset_id=%s: %s %s",
+            r = None
+            selected_folder_name = None
+            last_error_status = None
+            last_error_body = ""
+
+            for folder_name in folder_candidates:
+                by_path_url = (
+                    f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/"
+                    f"{nas_source_name}/{folder_name}"
+                )
+                candidate_response = await client.get(by_path_url, headers=headers)
+
+                if candidate_response.status_code == 200:
+                    r = candidate_response
+                    selected_folder_name = folder_name
+                    break
+
+                last_error_status = candidate_response.status_code
+                last_error_body = candidate_response.text[:500]
+                logger.info(
+                    "Dataset folder candidate '%s' not available for dataset_id=%s: %s",
+                    folder_name,
                     dataset_id,
-                    r.status_code,
-                    r.text[:500],
+                    candidate_response.status_code,
+                )
+
+            if r is None:
+                logger.error(
+                    "Dataset folder not found or not accessible for dataset_id=%s (tried=%s): %s %s",
+                    dataset_id,
+                    folder_candidates,
+                    last_error_status,
+                    last_error_body,
                 )
                 return False
+
+            logger.info(
+                "Resolved dataset_id=%s to folder '%s' in source '%s'",
+                dataset_id,
+                selected_folder_name,
+                nas_source_name,
+            )
 
             entity = r.json()
             entity_type = entity.get("entityType")
