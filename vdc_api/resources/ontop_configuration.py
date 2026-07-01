@@ -293,7 +293,7 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            prefixed_dataset_id = get_dremio_dataset_name(dataset_id)
+            prefixed_dataset_id = dataset_id
             normalized_dataset_id = prefixed_dataset_id.replace("-", "_")
             legacy_normalized_dataset_id = dataset_id.replace("-", "_")
             folder_candidates = []

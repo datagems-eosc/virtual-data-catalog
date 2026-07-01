@@ -192,20 +192,18 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         dremio_dataset_name = _get_dremio_dataset_name(source_id)
         if mimeType == "text/csv":
-            sql_query = f"""
-            SELECT {", ".join(projection_sql)}
-            FROM "csvroot"."{dremio_dataset_name.replace('-', '_')}"."{table_name}"
-            """
+            table_name_literal = f'"csvroot"."{source_id}"."{table_name}"'
+
+            mappings.add((logical_table, RR.tableName, Literal(table_name_literal)))
 
         elif mimeType == "text/sql":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '
                 f'FROM "{ dremio_dataset_name }"."{ schema_name }"."{ table_name }"'
             )
+            mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
         else:
             raise ValueError(f"Unsupported mimeType: {mimeType}")
-
-        mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
 
         subject_map = BNode()
         mappings.add((triples_map, RR.subjectMap, subject_map))
