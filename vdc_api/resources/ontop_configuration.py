@@ -54,9 +54,10 @@ class SparqlRequest(BaseModel):
 
 
 def get_dremio_dataset_name(dataset_id: str) -> str:
-    if dataset_id.startswith(DREMIO_DATASET_PREFIX):
-        return dataset_id
-    return f"{DREMIO_DATASET_PREFIX}{dataset_id}"
+    base_dataset_id = dataset_id
+    if base_dataset_id.startswith(DREMIO_DATASET_PREFIX):
+        base_dataset_id = base_dataset_id[len(DREMIO_DATASET_PREFIX) :]
+    return f"{DREMIO_DATASET_PREFIX}{base_dataset_id.replace('-', '_')}"
 
 
 @router.post("/dataset/{dataset_id}", status_code=status.HTTP_201_CREATED)
@@ -293,15 +294,12 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                 return False
 
             # --- Check dataset folder in NAS source ---
-            prefixed_dataset_id = dataset_id
-            normalized_dataset_id = prefixed_dataset_id.replace("-", "_")
-            legacy_normalized_dataset_id = dataset_id.replace("-", "_")
+            dremio_dataset_folder = get_dremio_dataset_name(dataset_id)
+            normalized_dataset_id = dataset_id.replace("-", "_")
             folder_candidates = []
             for folder_name in (
-                normalized_dataset_id,
-                legacy_normalized_dataset_id,
-                prefixed_dataset_id,
                 dataset_id,
+                normalized_dataset_id,
             ):
                 if folder_name not in folder_candidates:
                     folder_candidates.append(folder_name)
@@ -412,7 +410,11 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
 
                     # Promote the existing FILE entity into a PHYSICAL_DATASET
                     encoded_id = quote(file_id, safe="")
-                    preferred_dataset_path = [*file_path[:-1], dataset_name]
+                    preferred_dataset_path = [
+                        nas_source_name,
+                        dremio_dataset_folder,
+                        dataset_name,
+                    ]
                     promote_payload = {
                         "entityType": "dataset",
                         "type": "PHYSICAL_DATASET",

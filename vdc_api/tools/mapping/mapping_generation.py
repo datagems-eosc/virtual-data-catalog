@@ -43,9 +43,10 @@ def _quote_identifier(identifier: str) -> str:
 
 
 def _get_dremio_dataset_name(dataset_id: str) -> str:
-    if dataset_id.startswith(DREMIO_DATASET_PREFIX):
-        return dataset_id
-    return f"{DREMIO_DATASET_PREFIX}{dataset_id}"
+    base_dataset_id = dataset_id
+    if base_dataset_id.startswith(DREMIO_DATASET_PREFIX):
+        base_dataset_id = base_dataset_id[len(DREMIO_DATASET_PREFIX) :]
+    return f"{DREMIO_DATASET_PREFIX}{base_dataset_id.replace('-', '_')}"
 
 
 def _normalize_datatype_token(data_type: str | None) -> str | None:
