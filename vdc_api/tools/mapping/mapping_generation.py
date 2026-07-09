@@ -114,6 +114,10 @@ def _build_projection_sql(source_column: str, alias: str, mode: str) -> str:
     return f"{source_expr} AS {alias_expr}"
 
 
+def _sanitize_field_name(field_name: str) -> str:
+    return field_name.replace(" ", "_").replace(".", "_")
+
+
 def merge_mapping_files() -> None:
     """Concatenate all per-dataset .ttl files from mappings/ into mapping.ttl."""
     ttl_files = sorted(MAPPINGS_DIR.glob("*.ttl"))
@@ -171,6 +175,7 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         projection_sql = []
         for field in details["columns"]:
             field_name = details.get("column_names", {}).get(field, field)
+            safe_field_name = _sanitize_field_name(field_name)
             field_info = details.get("field_metadata", {}).get(field, {})
             source_column = field_info.get("source_column") or field_name
             strategy = _infer_field_strategy(field_name, field_info)
@@ -178,13 +183,13 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
             field_specs.append(
                 {
                     "field": field,
-                    "field_name": field_name,
+                    "field_name": safe_field_name,
                     "source_column": source_column,
                     "strategy": strategy,
                 }
             )
             projection_sql.append(
-                _build_projection_sql(source_column, field_name, strategy["mode"])
+                _build_projection_sql(source_column, safe_field_name, strategy["mode"])
             )
         triples_map = URIRef(f"#TripleMapping_{source_id}_{index}")
         mappings.add((triples_map, RDF.type, RR.TriplesMap))
@@ -280,18 +285,23 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
         recordset_name = details.get("recordset_name", table)
         for field in details["columns"]:
             field_name = details.get("column_names", {}).get(field, field)
+            safe_field_name = _sanitize_field_name(field_name)
 
             if not isBinaryTable(table, details):
                 ontology.add(
                     (
-                        URIRef(f"http://example.com/{dataset_id}/{table}#{field_name}"),
+                        URIRef(
+                            f"http://example.com/{dataset_id}/{table}#{safe_field_name}"
+                        ),
                         URIRef("http://www.w3.org/2000/01/rdf-schema#domain"),
                         URIRef(f"http://example.com/{dataset_id}/{recordset_name}"),
                     )
                 )
                 ontology.add(
                     (
-                        URIRef(f"http://example.com/{dataset_id}/{table}#{field_name}"),
+                        URIRef(
+                            f"http://example.com/{dataset_id}/{table}#{safe_field_name}"
+                        ),
                         URIRef("http://www.w3.org/ns/prov#wasDerivedFrom"),
                         URIRef(f"http://example.com/{source_id}/{field}"),
                     )
@@ -302,7 +312,7 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                         ontology.add(
                             (
                                 URIRef(
-                                    f"http://example.com/{dataset_id}/{table}#{field_name}"
+                                    f"http://example.com/{dataset_id}/{table}#{safe_field_name}"
                                 ),
                                 RDF.type,
                                 URIRef("http://www.w3.org/2002/07/owl#ObjectProperty"),
@@ -311,7 +321,7 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                         ontology.add(
                             (
                                 URIRef(
-                                    f"http://example.com/{dataset_id}/{table}#{field_name}"
+                                    f"http://example.com/{dataset_id}/{table}#{safe_field_name}"
                                 ),
                                 URIRef("http://www.w3.org/2000/01/rdf-schema#range"),
                                 URIRef(
