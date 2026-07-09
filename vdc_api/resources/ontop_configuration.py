@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 import vdc_api.resources.security as security
-import vdc_api.tools.mapping.mapping_generation as mapping_generation
 import json
 from vdc_api.tools.S3.ontop_inputs import upload_ontop_properties
 from rdflib import Graph
@@ -162,6 +161,9 @@ async def add_mappings_to_ontop(dataset_info: dict, source_name: str, mimeType: 
     Generate mapping file for a given dataset and merge it with existing mappings in Ontop, then restart the Ontop container to apply the changes.
     #TODO: We should find where the mappings should be stored and avoid merging all files on each request. Check about multiple input mappings files with ontop
     """
+    # Import lazily to avoid circular imports during app startup.
+    import vdc_api.tools.mapping.mapping_generation as mapping_generation
+
     mapping_generation.generate_mappings(
         dataset_info, source_id=source_name, mimeType=mimeType
     )
