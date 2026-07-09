@@ -10,7 +10,7 @@ from vdc_api.tools.S3.ontop_inputs import (
     upload_mapping_file,
     upload_ontology_file,
 )
-
+from vdc_api.resources.ontop_configuration import build_safe_view_name
 
 logger = logging.getLogger(__name__)
 
@@ -193,10 +193,10 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         mappings.add((logical_table, RDF.type, RR.LogicalTable))
         dremio_dataset_name = _get_dremio_dataset_name(source_id)
         if mimeType == "text/csv":
-            table_name_literal = f'"csvroot"."{source_id}"."{table_name}"'
-
-            mappings.add((logical_table, RR.tableName, Literal(table_name_literal)))
-
+            space_name = "csvroot_views"
+            safe_view_name = build_safe_view_name(dataset_id, table_name)
+            sql_query = f'SELECT {", ".join(projection_sql)} FROM "{space_name}"."{safe_view_name}"'
+            mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
         elif mimeType == "text/sql":
             sql_query = (
                 f'SELECT {", ".join(projection_sql)} '

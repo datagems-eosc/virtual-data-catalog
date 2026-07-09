@@ -248,6 +248,75 @@ async def create_postgres_source(token: str, db_name: str, source_name: str) -> 
     return False
 
 
+async def ensure_view_space_exists(
+    client: httpx.AsyncClient, headers: dict, space_name: str = "csvroot_views"
+) -> bool:
+    check = await client.get(
+        f"{DREMIO_BASE_URL}/api/v3/catalog/by-path/{space_name}", headers=headers
+    )
+    if check.status_code == 200:
+        return True
+    if check.status_code != 404:
+        logger.error(
+            "Unexpected error checking space '%s': %s", space_name, check.status_code
+        )
+        return False
+
+    r = await client.post(
+        f"{DREMIO_BASE_URL}/api/v3/catalog",
+        headers=headers,
+        json={"entityType": "space", "name": space_name},
+    )
+    if r.status_code in (200, 201, 409):
+        logger.info("Space '%s' ready.", space_name)
+        return True
+    logger.error(
+        "Failed to create space '%s': %s %s", space_name, r.status_code, r.text[:300]
+    )
+    return False
+
+
+def build_safe_view_name(dataset_id: str, dataset_name: str) -> str:
+    """Deterministic, SQL-safe view name: d__<uuid_with_underscores>__<filename_without_ext>"""
+    normalized_dataset_id = dataset_id.replace("-", "_")
+    return f"d__{normalized_dataset_id}__{dataset_name}"
+
+
+async def create_view_for_csv(
+    client: httpx.AsyncClient,
+    headers: dict,
+    space_name: str,
+    view_name: str,
+    source_path: list,
+) -> bool:
+    quoted_path = ".".join(f'"{p}"' for p in source_path)
+    sql = f"SELECT * FROM {quoted_path}"
+
+    payload = {
+        "entityType": "dataset",
+        "type": "VIRTUAL_DATASET",
+        "path": [space_name, view_name],
+        "sql": sql,
+        "sqlContext": source_path[:-1],
+    }
+
+    r = await client.post(
+        f"{DREMIO_BASE_URL}/api/v3/catalog", headers=headers, json=payload
+    )
+
+    if r.status_code in (200, 201, 409):
+        logger.info("View '%s.%s' ready.", space_name, view_name)
+        return True
+    logger.error(
+        "Failed to create view '%s.%s': %s %s",
+        space_name,
+        view_name,
+        r.status_code,
+        r.text[:500],
+    )
+    return False
+
+
 async def create_csv_source(token: str, dataset_id: str) -> bool:
     logger.info("Creating CSV source in Dremio for dataset_id=%s", dataset_id)
 
@@ -384,7 +453,6 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                         "No CSV files found in folder for dataset_id=%s", dataset_id
                     )
                     return False
-
                 for child in csv_files:
                     filename = child["path"][-1]
                     file_id = child.get("id")
@@ -464,6 +532,27 @@ async def create_csv_source(token: str, dataset_id: str) -> bool:
                             r3.text[:500],
                         )
                         return False
+                    # --- Create a clean Dremio view so Ontop never has to parse
+                    #     a 3-part quoted identifier with a UUID + .csv extension ---
+                    if not await ensure_view_space_exists(
+                        client, headers, "csvroot_views"
+                    ):
+                        return False
+
+                    safe_view_name = build_safe_view_name(dataset_id, dataset_name)
+
+                    if not await create_view_for_csv(
+                        client,
+                        headers,
+                        space_name="csvroot_views",
+                        view_name=safe_view_name,
+                        source_path=file_path,
+                    ):
+                        return False
+
+                    logger.info(
+                        "View ready for %s: csvroot_views.%s", filename, safe_view_name
+                    )
 
                 logger.info(
                     "All CSV files promoted successfully for dataset_id=%s", dataset_id
