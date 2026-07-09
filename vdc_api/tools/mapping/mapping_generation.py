@@ -308,58 +308,58 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                                 URIRef("http://www.w3.org/2002/07/owl#ObjectProperty"),
                             )
                         )
-                        # We might add something here later on, but issues with schema prefixes considered as object properties in ontop
-                        # ontology.add(
-                        #     (
-                        #         URIRef(
-                        #             f"http://example.com/{dataset_id}/{table}#{field_name}"
-                        #         ),
-                        #         URIRef("http://www.w3.org/2000/01/rdf-schema#range"),
-                        #         URIRef(
-                        #             f"http://example.com/{dataset_id}/{target_table}"
-                        #         ),
-                        #     )
-                        # )
-                        break
-                else:
-                    ontology.add(
-                        (
-                            URIRef(
-                                f"http://example.com/{dataset_id}/{table}#{field_name}"
-                            ),
-                            RDF.type,
-                            URIRef("http://www.w3.org/2002/07/owl#DatatypeProperty"),
-                        )
-                    )
-                    query = f"""
-                    PREFIX cr: <http://mlcommons.org/croissant/>
-                    PREFIX d: <http://datagems-dev.scayle.es/>
-
-                    SELECT ?dataType WHERE {{
-                        <{field}> cr:dataType ?dataType .
-                    }}
-                    """
-
-                    # print(query)
-                    results = croissant_graph.query(query)
-                    for row in results:
-                        dataType = (
-                            row.dataType.value
-                            if hasattr(row.dataType, "value")
-                            else str(row.dataType)
-                        )
-                        if dataType != "None":
-                            ontology.add(
-                                (
-                                    URIRef(
-                                        f"http://example.com/{dataset_id}/{table}#{field_name}"
-                                    ),
-                                    URIRef(
-                                        "http://www.w3.org/2000/01/rdf-schema#range"
-                                    ),
-                                    URIRef(dataType),
-                                )
+                        ontology.add(
+                            (
+                                URIRef(
+                                    f"http://example.com/{dataset_id}/{table}#{field_name}"
+                                ),
+                                URIRef("http://www.w3.org/2000/01/rdf-schema#range"),
+                                URIRef(
+                                    f"http://example.com/{dataset_id}/{target_table}"
+                                ),
                             )
+                        )
+                        break
+                # else:
+                #     ontology.add(
+                #         (
+                #             URIRef(
+                #                 f"http://example.com/{dataset_id}/{table}#{field_name}"
+                #             ),
+                #             RDF.type,
+                #             URIRef("http://www.w3.org/2002/07/owl#DatatypeProperty"),
+                #         )
+                #     )
+                #     query = f"""
+                #     PREFIX cr: <http://mlcommons.org/croissant/>
+                #     PREFIX d: <http://datagems-dev.scayle.es/>
+
+                #     SELECT ?dataType WHERE {{
+                #         <{field}> cr:dataType ?dataType .
+                #     }}
+                #     """
+
+                # print(query)
+                # results = croissant_graph.query(query)
+                # for row in results:
+                #     dataType = (
+                #         row.dataType.value
+                #         if hasattr(row.dataType, "value")
+                #         else str(row.dataType)
+                #     )
+                # TO-DO when the problem with schema is resolved
+                # if dataType != "None":
+                # ontology.add(
+                #     (
+                #         URIRef(
+                #             f"http://example.com/{dataset_id}/{table}#{field_name}"
+                #         ),
+                #         URIRef(
+                #             "http://www.w3.org/2000/01/rdf-schema#range"
+                #         ),
+                #         URIRef(dataType),
+                #     )
+                # )
 
             # Binary tables
             else:
