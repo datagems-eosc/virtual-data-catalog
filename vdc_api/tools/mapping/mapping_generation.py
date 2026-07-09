@@ -308,17 +308,18 @@ def generate_ontology(croissant_dict, source_id: str, schema_name: str = "public
                                 URIRef("http://www.w3.org/2002/07/owl#ObjectProperty"),
                             )
                         )
-                        ontology.add(
-                            (
-                                URIRef(
-                                    f"http://example.com/{dataset_id}/{table}#{field_name}"
-                                ),
-                                URIRef("http://www.w3.org/2000/01/rdf-schema#range"),
-                                URIRef(
-                                    f"http://example.com/{dataset_id}/{target_table}"
-                                ),
-                            )
-                        )
+                        # We might add something here later on, but issues with schema prefixes considered as object properties in ontop
+                        # ontology.add(
+                        #     (
+                        #         URIRef(
+                        #             f"http://example.com/{dataset_id}/{table}#{field_name}"
+                        #         ),
+                        #         URIRef("http://www.w3.org/2000/01/rdf-schema#range"),
+                        #         URIRef(
+                        #             f"http://example.com/{dataset_id}/{target_table}"
+                        #         ),
+                        #     )
+                        # )
                         break
                 else:
                     ontology.add(
