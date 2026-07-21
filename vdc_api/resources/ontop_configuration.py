@@ -770,6 +770,17 @@ async def get_ontop_properties():
         raise RuntimeError(f"Failed to read ontop properties: {str(e)}")
 
 
+@router.get("/ontop/lenses", response_class=PlainTextResponse)
+async def get_ontop_lenses():
+    """Return the Ontop lenses file as raw text."""
+    try:
+        file = S3_DIR / S3_INPUTS_FOLDER / "lenses.json"
+        with open(file, "r") as f:
+            return f.read()
+    except Exception as e:
+        raise RuntimeError(f"Failed to read ontop lenses: {str(e)}")
+
+
 @router.post("/s3/upload")
 async def upload_file(
     token: str = Depends(security.oauth2_scheme), file: UploadFile = File(...)

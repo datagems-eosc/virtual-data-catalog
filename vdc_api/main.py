@@ -67,6 +67,11 @@ def read_root():
                 "methods": ["GET"],
                 "url": "/api/v1/ontop/properties",
             },
+            "ontop/lenses": {
+                "description": "Get ontop lenses",
+                "methods": ["GET"],
+                "url": "/api/v1/ontop/lenses",
+            },
             "s3/upload": {
                 "description": "Upload files to S3",
                 "methods": ["POST"],
