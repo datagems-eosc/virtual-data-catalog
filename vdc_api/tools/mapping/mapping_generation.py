@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import copy
 from urllib.parse import urlparse
+import time
 
 from rdflib import Graph, Namespace, BNode, Literal, RDF, URIRef
 from vdc_api.tools.S3.ontop_inputs import (
@@ -154,8 +155,30 @@ def generate_mappings(
     croissant_dict, source_id: str, mimeType: str, schema_name: str = "public"
 ):
     croissant_dict = add_uri_prefix_to_croissant(croissant_dict)
+
+    total_start = time.perf_counter()
+
+    ontology_start = time.perf_counter()
     ontology = generate_ontology(croissant_dict, source_id, schema_name)
+    ontology_elapsed = time.perf_counter() - ontology_start
+    logger.info(
+        "Ontology generation took %.3fs for source_id=%s", ontology_elapsed, source_id
+    )
+
+    mappings_start = time.perf_counter()
     mappings = generate_mappings_file(croissant_dict, source_id, schema_name, mimeType)
+    mappings_elapsed = time.perf_counter() - mappings_start
+    logger.info(
+        "Mapping generation took %.3fs for source_id=%s", mappings_elapsed, source_id
+    )
+
+    total_elapsed = time.perf_counter() - total_start
+    logger.info(
+        "Total generation (ontology + mappings) took %.3fs for source_id=%s",
+        total_elapsed,
+        source_id,
+    )
+
     upload_mapping_file(
         mappings.serialize(format="turtle").encode("utf-8"), f"{source_id}.ttl"
     )
@@ -200,11 +223,11 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
         if mimeType == "text/csv":
             space_name = "csvroot_views"
             safe_view_name = build_safe_view_name(dataset_id, table_name)
-            sql_query = f'SELECT {", ".join(projection_sql)} FROM "{space_name}"."{safe_view_name}"'
+            sql_query = f'SELECT * FROM "{space_name}"."{safe_view_name}"'
             mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
         elif mimeType == "text/sql":
             sql_query = (
-                f'SELECT {", ".join(projection_sql)} '
+                f"SELECT * "
                 f'FROM "{ dremio_dataset_name }"."{ schema_name }"."{ table_name }"'
             )
             mappings.add((logical_table, RR.sqlQuery, Literal(sql_query)))
@@ -225,10 +248,18 @@ def generate_mappings_file(croissant_dict, source_id: str, schema_name, mimeType
                     ),
                 )
             )
+
         else:
             mappings.add((subject_map, RR.termType, RR.BlankNode))
             mappings.add((subject_map, RR.template, Literal("row")))
 
+        mappings.add(
+            (
+                subject_map,
+                RR.class_,
+                URIRef(f"http://example.com/{dataset_id}/{table_name}"),
+            )
+        )
         for field_spec in field_specs:
             field_name = field_spec["field_name"]
             predicate_object_map = BNode()
