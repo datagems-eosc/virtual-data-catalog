@@ -11,6 +11,7 @@ import vdc_api.resources.security as security
 import json
 from vdc_api.tools.S3.ontop_inputs import upload_ontop_properties
 from rdflib import Graph
+import time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -799,6 +800,7 @@ async def execute_sparql_query(
     body: SparqlRequest, token: str = Depends(security.oauth2_scheme)
 ):
     """Endpoint to execute SPARQL queries against the Ontop endpoint."""
+
     query = body.query
     logger.info("Received SPARQL query: %s", query)
 
@@ -807,9 +809,13 @@ async def execute_sparql_query(
         "Accept": "application/sparql-results+json",
     }
 
-    timeout = httpx.Timeout(connect=60.0, read=240.0, write=60.0, pool=240.0)
+    timeout = httpx.Timeout(connect=60.0, read=600.0, write=600.0, pool=600.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
+        start_time = time.perf_counter()
         resp = await client.post(ONTOP_SPARQL_URL, content=query, headers=headers)
+        elapsed = time.perf_counter() - start_time
+
+    logger.info("SPARQL query executed in %.3fs (status=%s)", elapsed, resp.status_code)
 
     if resp.status_code != 200:
         raise HTTPException(
